@@ -9,6 +9,8 @@ import com.acadex.app.domain.repository.NotesRepository
 import com.acadex.app.utils.SessionManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.InputStream
 import java.util.UUID
 import javax.inject.Inject
@@ -49,10 +51,8 @@ class NotesRepositoryImpl @Inject constructor(
 
         if (pdfStream != null && pdfName != null && token != null && userId != null) {
             val storagePath = "notes/$userId/$noteId/$pdfName"
-            val requestBody = okhttp3.RequestBody.create(
-                okhttp3.MediaType.parse("application/pdf"),
-                pdfStream.readBytes()
-            )
+            val requestBody = pdfStream.readBytes()
+                .toRequestBody("application/pdf".toMediaTypeOrNull())
             runCatching {
                 val uploadResponse = supabaseApiService.uploadFile(
                     SUPABASE_API_KEY,
@@ -83,10 +83,8 @@ class NotesRepositoryImpl @Inject constructor(
 
         if (pdfStream != null && pdfName != null && token != null && userId != null) {
             val storagePath = "notes/$userId/${note.id}/$pdfName"
-            val requestBody = okhttp3.RequestBody.create(
-                okhttp3.MediaType.parse("application/pdf"),
-                pdfStream.readBytes()
-            )
+            val requestBody = pdfStream.readBytes()
+                .toRequestBody("application/pdf".toMediaTypeOrNull())
             runCatching {
                 val uploadResponse = supabaseApiService.uploadFile(
                     SUPABASE_API_KEY,
