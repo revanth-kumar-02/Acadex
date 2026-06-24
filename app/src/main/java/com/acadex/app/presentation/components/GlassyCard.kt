@@ -3,13 +3,11 @@ package com.acadex.app.presentation.components
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -19,8 +17,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.acadex.app.presentation.theme.GlassBlack
 import com.acadex.app.presentation.theme.GlassBlackBorder
-import com.acadex.app.presentation.theme.GlassWhite
-import com.acadex.app.presentation.theme.GlassWhiteBorder
 
 @Composable
 fun GlassyCard(
@@ -28,9 +24,8 @@ fun GlassyCard(
     cornerRadius: Dp = 20.dp,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val bgColor = if (isDark) GlassBlack else GlassWhite
-    val borderColor = if (isDark) GlassBlackBorder else GlassWhiteBorder
+    val bgColor = GlassBlack
+    val borderColor = GlassBlackBorder
 
     Box(
         modifier = modifier
@@ -61,9 +56,8 @@ fun PremiumCard(
     backgroundColor: Color? = null,
     content: @Composable BoxScope.() -> Unit
 ) {
-    val isDark = isSystemInDarkTheme()
-    val defaultBg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
-    val defaultBorder = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+    val defaultBg = MaterialTheme.colorScheme.surface
+    val defaultBorder = MaterialTheme.colorScheme.outline
 
     Box(
         modifier = modifier

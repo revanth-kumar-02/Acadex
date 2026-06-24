@@ -2,29 +2,24 @@ package com.acadex.app.presentation.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Brand Colors
-val Primary = Color(0xFF4F46E5) // Indigo
-val Secondary = Color(0xFF8B5CF6) // Violet
-val Accent = Color(0xFF38BDF8) // Sky Blue
+// Brand Colors (New Accent Colors)
+val Primary = Color(0xFF6D5DFC)       // Primary Accent (Soft Purple)
+val Secondary = Color(0xFF8B7CFF)     // Secondary Accent (Lighter Purple)
+val Accent = Color(0xFF8B7CFF)        // Tertiary Accent (Lighter Purple)
 
-// Gradient List
-val BrandGradient = listOf(Primary, Secondary, Accent)
+// Original Brand Colors specifically for Splash & Auth background gradient
+val OriginalPrimary = Color(0xFF4F46E5) // Indigo
+val OriginalSecondary = Color(0xFF8B5CF6) // Violet
+val OriginalAccent = Color(0xFF38BDF8) // Sky Blue
+val BrandGradient = listOf(OriginalPrimary, OriginalSecondary, OriginalAccent)
 
 // Dark Theme Colors
-val DarkBackground = Color(0xFF0F172A)
-val DarkSurface = Color(0xFF1E293B)
-val DarkSurfaceVariant = Color(0xFF334155)
-val DarkPrimaryText = Color(0xFFF8FAFC)
-val DarkSecondaryText = Color(0xFF94A3B8)
-val DarkBorder = Color(0xFF334155)
-
-// Light Theme Colors
-val LightBackground = Color(0xFFFAFAFC)
-val LightSurface = Color(0xFFFFFFFF)
-val LightSurfaceVariant = Color(0xFFF1F5F9)
-val LightPrimaryText = Color(0xFF0F172A)
-val LightSecondaryText = Color(0xFF64748B)
-val LightBorder = Color(0xFFE2E8F0)
+val DarkBackground = Color(0xFF080B14)
+val DarkSurface = Color(0xFF151D2E)
+val DarkSurfaceVariant = Color(0xFF101827)
+val DarkPrimaryText = Color(0xFFFFFFFF)
+val DarkSecondaryText = Color(0xFFA3ADC2)
+val DarkBorder = Color(0xFF242F45)
 
 // Helper Colors
 val Success = Color(0xFF10B981)

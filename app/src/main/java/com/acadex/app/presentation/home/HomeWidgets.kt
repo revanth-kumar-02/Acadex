@@ -198,7 +198,7 @@ fun QuickActionsWidget(
                 modifier = Modifier.weight(1f)
             )
             QuickActionButton(
-                label = "Add Assgn",
+                label = "Add Assignment",
                 icon = Icons.Default.Add,
                 color = Success,
                 onClick = onAddAssignment,
