@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Acadex" parent="android:Theme.Material.NoActionBar">
+        <!-- Minimal framework theme setup; Jetpack Compose styles the app at runtime -->
+        <item name="android:statusBarColor">#FAFAFC</item>
+        <item name="android:navigationBarColor">#FAFAFC</item>
+    </style>
+</resources>
