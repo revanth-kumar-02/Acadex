@@ -1,152 +1,118 @@
 package com.acadex.app.data.repository
 
-import com.acadex.app.data.remote.FirebaseService
+import com.acadex.app.data.remote.PlannerTaskDto
+import com.acadex.app.data.remote.SupabaseApiService
 import com.acadex.app.domain.model.PlannerTask
 import com.acadex.app.domain.model.TaskType
 import com.acadex.app.domain.repository.PlannerRepository
-import kotlinx.coroutines.channels.awaitClose
+import com.acadex.app.utils.SessionManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.flow.flow
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
 class PlannerRepositoryImpl @Inject constructor(
-    private val firebaseService: FirebaseService
+    private val supabaseApiService: SupabaseApiService,
+    private val sessionManager: SessionManager
 ) : PlannerRepository {
 
-    override fun getTasksFlow(date: Long): Flow<List<PlannerTask>> = callbackFlow {
-        val uid = firebaseService.currentUserId
-        if (uid == null) {
-            trySend(emptyList())
-            close()
-            return@callbackFlow
-        }
-
-        // We filter in Compose or in Query. Filtering in Query requires matching exact date
-        val listener = firebaseService.firestore.collection("planner_tasks")
-            .whereEqualTo("userId", uid)
-            .whereEqualTo("date", date)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
-                }
-
-                val list = snapshot?.documents?.map { doc ->
-                    PlannerTask(
-                        id = doc.getString("id") ?: "",
-                        title = doc.getString("title") ?: "",
-                        description = doc.getString("description") ?: "",
-                        date = doc.getLong("date") ?: 0L,
-                        startTime = doc.getString("startTime") ?: "",
-                        endTime = doc.getString("endTime") ?: "",
-                        type = TaskType.valueOf(doc.getString("type") ?: "TASK"),
-                        isCompleted = doc.getBoolean("isCompleted") ?: false
-                    )
-                } ?: emptyList()
-
-                trySend(list)
-            }
-
-        awaitClose { listener.remove() }
+    companion object {
+        private const val SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tYnB6cmN0ZnNxbHBheGJ2amhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyOTc1MzksImV4cCI6MjA5Nzg3MzUzOX0.jVFqmzTk-E-64PJrPgSZ3cpZDvHBk00vbRXtW1bTGSs"
     }
 
-    override fun getAllTasksFlow(): Flow<List<PlannerTask>> = callbackFlow {
-        val uid = firebaseService.currentUserId
-        if (uid == null) {
-            trySend(emptyList())
-            close()
-            return@callbackFlow
-        }
-
-        val listener = firebaseService.firestore.collection("planner_tasks")
-            .whereEqualTo("userId", uid)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error)
-                    return@addSnapshotListener
+    override fun getTasksFlow(date: Long): Flow<List<PlannerTask>> = flow {
+        while (true) {
+            val token = sessionManager.getAccessToken()
+            val userId = sessionManager.getUserId()
+            if (token != null && userId != null) {
+                runCatching {
+                    supabaseApiService.getPlannerTasks(SUPABASE_API_KEY, "Bearer $token", "eq.$userId")
+                }.onSuccess { dtos ->
+                    // Filter by the epoch-day (matching stored date field)
+                    val filtered = dtos.filter { it.date == date }.map { it.toDomain() }
+                    emit(filtered)
+                }.onFailure {
+                    emit(emptyList())
                 }
-
-                val list = snapshot?.documents?.map { doc ->
-                    PlannerTask(
-                        id = doc.getString("id") ?: "",
-                        title = doc.getString("title") ?: "",
-                        description = doc.getString("description") ?: "",
-                        date = doc.getLong("date") ?: 0L,
-                        startTime = doc.getString("startTime") ?: "",
-                        endTime = doc.getString("endTime") ?: "",
-                        type = TaskType.valueOf(doc.getString("type") ?: "TASK"),
-                        isCompleted = doc.getBoolean("isCompleted") ?: false
-                    )
-                } ?: emptyList()
-
-                trySend(list)
+            } else {
+                emit(emptyList())
             }
+            delay(30_000)
+        }
+    }
 
-        awaitClose { listener.remove() }
+    override fun getAllTasksFlow(): Flow<List<PlannerTask>> = flow {
+        while (true) {
+            val token = sessionManager.getAccessToken()
+            val userId = sessionManager.getUserId()
+            if (token != null && userId != null) {
+                runCatching {
+                    supabaseApiService.getPlannerTasks(SUPABASE_API_KEY, "Bearer $token", "eq.$userId")
+                }.onSuccess { dtos ->
+                    emit(dtos.map { it.toDomain() })
+                }.onFailure {
+                    emit(emptyList())
+                }
+            } else {
+                emit(emptyList())
+            }
+            delay(30_000)
+        }
     }
 
     override suspend fun getTaskById(id: String): PlannerTask? {
-        val doc = firebaseService.firestore.collection("planner_tasks").document(id).get().await()
-        if (!doc.exists()) return null
-        return PlannerTask(
-            id = doc.getString("id") ?: "",
-            title = doc.getString("title") ?: "",
-            description = doc.getString("description") ?: "",
-            date = doc.getLong("date") ?: 0L,
-            startTime = doc.getString("startTime") ?: "",
-            endTime = doc.getString("endTime") ?: "",
-            type = TaskType.valueOf(doc.getString("type") ?: "TASK"),
-            isCompleted = doc.getBoolean("isCompleted") ?: false
-        )
+        val token = sessionManager.getAccessToken() ?: return null
+        val userId = sessionManager.getUserId() ?: return null
+        return runCatching {
+            supabaseApiService.getPlannerTasks(SUPABASE_API_KEY, "Bearer $token", "eq.$userId")
+                .firstOrNull { it.id == id }
+                ?.toDomain()
+        }.getOrNull()
     }
 
     override suspend fun createTask(task: PlannerTask): Result<Unit> = runCatching {
-        val uid = firebaseService.currentUserId ?: throw Exception("User not authenticated")
+        val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
+        val userId = sessionManager.getUserId() ?: throw Exception("User ID not found")
         val id = task.id.ifEmpty { UUID.randomUUID().toString() }
 
-        val map = mapOf(
-            "id" to id,
-            "userId" to uid,
-            "title" to task.title,
-            "description" to task.description,
-            "date" to task.date,
-            "startTime" to task.startTime,
-            "endTime" to task.endTime,
-            "type" to task.type.name,
-            "isCompleted" to task.isCompleted
+        val dto = PlannerTaskDto(
+            id = id,
+            userId = userId,
+            title = task.title,
+            description = task.description,
+            date = task.date,
+            completed = task.isCompleted
         )
-
-        firebaseService.firestore.collection("planner_tasks")
-            .document(id)
-            .set(map)
-            .await()
+        supabaseApiService.createPlannerTask(SUPABASE_API_KEY, "Bearer $token", dto)
     }
 
     override suspend fun updateTask(task: PlannerTask): Result<Unit> = runCatching {
-        val map = mapOf(
+        val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
+        val updates = mapOf<String, Any>(
             "title" to task.title,
             "description" to task.description,
             "date" to task.date,
-            "startTime" to task.startTime,
-            "endTime" to task.endTime,
-            "type" to task.type.name,
-            "isCompleted" to task.isCompleted
+            "completed" to task.isCompleted
         )
-
-        firebaseService.firestore.collection("planner_tasks")
-            .document(task.id)
-            .update(map)
-            .await()
+        supabaseApiService.updatePlannerTask(SUPABASE_API_KEY, "Bearer $token", "eq.${task.id}", updates)
     }
 
     override suspend fun deleteTask(id: String): Result<Unit> = runCatching {
-        firebaseService.firestore.collection("planner_tasks")
-            .document(id)
-            .delete()
-            .await()
+        val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
+        supabaseApiService.deletePlannerTask(SUPABASE_API_KEY, "Bearer $token", "eq.$id")
     }
+
+    private fun PlannerTaskDto.toDomain() = PlannerTask(
+        id = id ?: "",
+        title = title,
+        description = description,
+        date = date,
+        startTime = "",
+        endTime = "",
+        type = TaskType.TASK,
+        isCompleted = completed
+    )
 }

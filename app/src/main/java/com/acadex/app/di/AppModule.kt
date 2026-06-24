@@ -5,6 +5,7 @@ import androidx.room.Room
 import com.acadex.app.data.local.AcadexDatabase
 import com.acadex.app.data.local.NoteDao
 import com.acadex.app.data.remote.ApiService
+import com.acadex.app.data.remote.SupabaseApiService
 import com.acadex.app.data.repository.AuthRepositoryImpl
 import com.acadex.app.data.repository.AssignmentRepositoryImpl
 import com.acadex.app.data.repository.ExamRepositoryImpl
@@ -17,9 +18,6 @@ import com.acadex.app.domain.repository.ExamRepository
 import com.acadex.app.domain.repository.NotesRepository
 import com.acadex.app.domain.repository.PlannerRepository
 import com.acadex.app.domain.repository.ResourceRepository
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.storage.FirebaseStorage
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -65,19 +63,6 @@ abstract class RepositoryModule {
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-    // Firebase
-    @Provides
-    @Singleton
-    fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
-
-    @Provides
-    @Singleton
-    fun provideFirebaseFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
-
-    @Provides
-    @Singleton
-    fun provideFirebaseStorage(): FirebaseStorage = FirebaseStorage.getInstance()
-
     // Room Database
     @Provides
     @Singleton
@@ -108,10 +93,16 @@ object AppModule {
     @Singleton
     fun provideRetrofit(okHttpClient: OkHttpClient): Retrofit {
         return Retrofit.Builder()
-            .baseUrl("https://acadex-api-mock.requestcatcher.com/") // Template domain for request mapping
+            .baseUrl("https://ombpzrctfsqlpaxbvjha.supabase.co/") // Acadex Supabase Project
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideSupabaseApiService(retrofit: Retrofit): SupabaseApiService {
+        return retrofit.create(SupabaseApiService::class.java)
     }
 
     @Provides

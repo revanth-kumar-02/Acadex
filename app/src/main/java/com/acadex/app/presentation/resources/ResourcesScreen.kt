@@ -63,7 +63,7 @@ fun ResourcesScreen(
 
     val categories = listOf("Syllabus", "Previous Paper", "Book", "Notes")
 
-    // Insert mock materials if Firebase is empty, to demonstrate production quality
+    // Insert sample materials if the Supabase resources table is empty, for demonstration
     LaunchedEffect(Unit) {
         if (resources.isEmpty()) {
             viewModel.uploadResource(
