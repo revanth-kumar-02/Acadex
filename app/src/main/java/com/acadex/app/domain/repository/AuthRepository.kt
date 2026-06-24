@@ -12,4 +12,5 @@ interface AuthRepository {
     suspend fun logout(): Result<Unit>
     suspend fun resetPassword(email: String): Result<Unit>
     suspend fun updateProfile(name: String, registerNumber: String, department: String, semester: String, profilePicUrl: String): Result<User>
+    suspend fun handleDeepLinkSession(accessToken: String, refreshToken: String): Result<User>
 }

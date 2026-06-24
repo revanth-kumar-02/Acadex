@@ -1,5 +1,6 @@
 package com.acadex.app.presentation.auth
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,7 +76,9 @@ fun RegisterScreen(
     val scrollState = rememberScrollState()
 
     LaunchedEffect(authState) {
+        Log.d("RegisterScreen", "LaunchedEffect observed authState: $authState")
         if (authState is AuthState.Success || authState is AuthState.Authenticated) {
+            Log.i("RegisterScreen", "Registration state resolved to Success/Authenticated. Triggering onRegisterSuccess.")
             onRegisterSuccess()
             viewModel.resetState()
         }

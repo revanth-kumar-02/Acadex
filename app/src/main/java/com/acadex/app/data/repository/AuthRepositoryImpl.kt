@@ -4,12 +4,15 @@ import com.acadex.app.data.remote.*
 import com.acadex.app.domain.model.User
 import com.acadex.app.domain.repository.AuthRepository
 import com.acadex.app.utils.SessionManager
+import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -85,39 +88,63 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun login(email: String, password: String): Result<User> = runCatching {
-        val authResponse = supabaseApiService.signIn(SUPABASE_API_KEY, SignInRequest(email, password))
-        val token = authResponse.accessToken ?: throw Exception("Auth failed: Access token is null")
-        val authUser = authResponse.user
-        
-        // Fetch database profile
-        val profileList = runCatching {
-            supabaseApiService.getUserProfile(SUPABASE_API_KEY, "Bearer $token", "eq.${authUser.id}")
-        }.getOrNull()
-        val profile = profileList?.firstOrNull()
-        
-        val name = profile?.name ?: authUser.userMetadata?.get("name") ?: email.substringBefore("@")
-        
-        // Persist session locally
-        sessionManager.saveSession(
-            accessToken = token,
-            refreshToken = authResponse.refreshToken ?: "",
-            userId = authUser.id,
-            email = authUser.email,
-            name = name
-        )
+    override suspend fun login(email: String, password: String): Result<User> = withContext(Dispatchers.IO) {
+        runCatching {
+            Log.d("AuthRepository", "Starting login request for email: $email")
+            val authResponse = try {
+                supabaseApiService.signIn(SUPABASE_API_KEY, SignInRequest(email, password))
+            } catch (e: Exception) {
+                Log.e("AuthRepository", "Supabase signIn API request failed", e)
+                throw e
+            }
+            
+            val token = authResponse.accessToken ?: throw Exception("Auth failed: Access token is null")
+            val authUser = authResponse.user
+            Log.d("AuthRepository", "Login response received: user ID = ${authUser.id}")
+            
+            // Fetch database profile
+            Log.d("AuthRepository", "Fetching database profile for user ${authUser.id}")
+            val profileList = runCatching {
+                supabaseApiService.getUserProfile(SUPABASE_API_KEY, "Bearer $token", "eq.${authUser.id}")
+            }.onFailure { e ->
+                Log.e("AuthRepository", "Failed to fetch database profile", e)
+            }.getOrNull()
+            
+            val profile = profileList?.firstOrNull()
+            if (profile != null) {
+                Log.d("AuthRepository", "Database profile found: name=${profile.name}")
+            } else {
+                Log.w("AuthRepository", "No database profile found for user")
+            }
+            
+            val name = profile?.name ?: authUser.userMetadata?.get("name") ?: email.substringBefore("@")
+            
+            // Persist session locally
+            Log.d("AuthRepository", "Saving session to SessionManager")
+            sessionManager.saveSession(
+                accessToken = token,
+                refreshToken = authResponse.refreshToken ?: "",
+                userId = authUser.id,
+                email = authUser.email,
+                name = name
+            )
 
-        val user = User(
-            uid = authUser.id,
-            name = name,
-            email = authUser.email,
-            registerNumber = profile?.registerNumber ?: authUser.userMetadata?.get("register_number") ?: "",
-            department = profile?.department ?: authUser.userMetadata?.get("department") ?: "",
-            semester = profile?.semester ?: authUser.userMetadata?.get("semester") ?: "",
-            profilePicUrl = profile?.profileImageUrl ?: ""
-        )
-        _currentUser.value = user
-        user
+            val user = User(
+                uid = authUser.id,
+                name = name,
+                email = authUser.email,
+                registerNumber = profile?.registerNumber ?: authUser.userMetadata?.get("register_number") ?: "",
+                department = profile?.department ?: authUser.userMetadata?.get("department") ?: "",
+                semester = profile?.semester ?: authUser.userMetadata?.get("semester") ?: "",
+                profilePicUrl = profile?.profileImageUrl ?: ""
+            )
+            
+            Log.d("AuthRepository", "Setting _currentUser on login success")
+            _currentUser.value = user
+            user
+        }.onFailure { error ->
+            Log.e("AuthRepository", "Login failed with exception", error)
+        }
     }
 
     override suspend fun register(
@@ -127,54 +154,87 @@ class AuthRepositoryImpl @Inject constructor(
         registerNumber: String,
         department: String,
         semester: String
-    ): Result<User> = runCatching {
-        val userMetadata = mapOf(
-            "name" to name,
-            "register_number" to registerNumber,
-            "department" to department,
-            "semester" to semester
-        )
-        
-        val signUpResponse = supabaseApiService.signUp(SUPABASE_API_KEY, SignUpRequest(email, password, userMetadata))
-        val authUser = signUpResponse.user ?: throw Exception("Registration failed: User is null")
-        
-        // Wait briefly for trigger synchronization if auto-login token is not returned directly
-        val token = sessionManager.getAccessToken() ?: ""
-        
-        val user = User(
-            uid = authUser.id,
-            name = name,
-            email = email,
-            registerNumber = registerNumber,
-            department = department,
-            semester = semester,
-            profilePicUrl = ""
-        )
-        
-        // If the registration immediately logs in the user, persist that session
-        val accessToken = signUpResponse.accessToken
-        if (accessToken != null) {
-            sessionManager.saveSession(
-                accessToken = accessToken,
-                refreshToken = signUpResponse.refreshToken ?: "",
-                userId = authUser.id,
-                email = email,
-                name = name
-            )
-        }
+    ): Result<User> = withContext(Dispatchers.IO) {
+        runCatching {
+            Log.d("AuthRepository", "Starting registration for email: $email")
+            withTimeout(15000) {
+                val userMetadata = mapOf(
+                    "name" to name,
+                    "register_number" to registerNumber,
+                    "department" to department,
+                    "semester" to semester
+                )
+                
+                Log.d("AuthRepository", "Sending sign up request to Supabase with redirect_to=acadex://auth/callback")
+                val signUpResponse = try {
+                    supabaseApiService.signUp(
+                        apiKey = SUPABASE_API_KEY,
+                        redirectTo = "acadex://auth/callback",
+                        body = SignUpRequest(email, password, userMetadata)
+                    )
+                } catch (e: Exception) {
+                    Log.e("AuthRepository", "Supabase signUp API request failed", e)
+                    throw e
+                }
+                
+                Log.d("AuthRepository", "Supabase sign up response received: user ID = ${signUpResponse.user?.id}")
+                val authUser = signUpResponse.user ?: throw Exception("Registration failed: User details not returned from Supabase")
+                Log.d("AuthRepository", "User created successfully in Auth: ${authUser.id}")
 
-        _currentUser.value = user
-        user
+                val accessToken = signUpResponse.accessToken
+                if (accessToken == null) {
+                    val infoMsg = "Registration successful. A verification email has been sent to $email. Please confirm your email to complete registration."
+                    Log.i("AuthRepository", infoMsg)
+                    throw Exception(infoMsg)
+                }
+
+                Log.d("AuthRepository", "Persisting session to SessionManager (Auto-confirmed)")
+                sessionManager.saveSession(
+                    accessToken = accessToken,
+                    refreshToken = signUpResponse.refreshToken ?: "",
+                    userId = authUser.id,
+                    email = email,
+                    name = name
+                )
+                
+                val user = User(
+                    uid = authUser.id,
+                    name = name,
+                    email = email,
+                    registerNumber = registerNumber,
+                    department = department,
+                    semester = semester,
+                    profilePicUrl = ""
+                )
+                
+                Log.d("AuthRepository", "Profile created in memory, setting _currentUser")
+                _currentUser.value = user
+                user
+            }
+        }.onFailure { error ->
+            Log.e("AuthRepository", "Registration failed with exception", error)
+        }
     }
 
     override suspend fun logout(): Result<Unit> = runCatching {
-        // Clear local preferences
+        Log.d("AuthRepository", "Logging out user: clearing session")
         sessionManager.clearSession()
         _currentUser.value = null
     }
 
-    override suspend fun resetPassword(email: String): Result<Unit> = runCatching {
-        supabaseApiService.recoverPassword(SUPABASE_API_KEY, RecoverRequest(email))
+    override suspend fun resetPassword(email: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            Log.d("AuthRepository", "Requesting password reset for email: $email with redirect_to=acadex://auth/callback")
+            supabaseApiService.recoverPassword(
+                apiKey = SUPABASE_API_KEY,
+                redirectTo = "acadex://auth/callback",
+                body = RecoverRequest(email)
+            )
+            Log.i("AuthRepository", "Password recovery request sent successfully")
+            Unit
+        }.onFailure { error ->
+            Log.e("AuthRepository", "Password reset request failed with exception", error)
+        }
     }
 
     override suspend fun updateProfile(
@@ -183,30 +243,99 @@ class AuthRepositoryImpl @Inject constructor(
         department: String,
         semester: String,
         profilePicUrl: String
-    ): Result<User> = runCatching {
-        val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
-        val userId = sessionManager.getUserId() ?: throw Exception("User ID not found")
-        
-        val updates = mapOf(
-            "name" to name,
-            "register_number" to registerNumber,
-            "department" to department,
-            "semester" to semester,
-            "profile_image_url" to profilePicUrl
-        )
+    ): Result<User> = withContext(Dispatchers.IO) {
+        runCatching {
+            Log.d("AuthRepository", "Updating user profile...")
+            val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
+            val userId = sessionManager.getUserId() ?: throw Exception("User ID not found")
+            
+            val updates = mapOf(
+                "name" to name,
+                "register_number" to registerNumber,
+                "department" to department,
+                "semester" to semester,
+                "profile_image_url" to profilePicUrl
+            )
 
-        supabaseApiService.updateUserProfile(SUPABASE_API_KEY, "Bearer $token", "eq.$userId", updates)
+            Log.d("AuthRepository", "Sending profile update request to Supabase...")
+            supabaseApiService.updateUserProfile(SUPABASE_API_KEY, "Bearer $token", "eq.$userId", updates)
+            Log.d("AuthRepository", "Profile updated successfully in remote database")
 
-        val updatedUser = User(
-            uid = userId,
-            name = name,
-            email = sessionManager.getUserEmail() ?: "",
-            registerNumber = registerNumber,
-            department = department,
-            semester = semester,
-            profilePicUrl = profilePicUrl
-        )
-        _currentUser.value = updatedUser
-        updatedUser
+            val updatedUser = User(
+                uid = userId,
+                name = name,
+                email = sessionManager.getUserEmail() ?: "",
+                registerNumber = registerNumber,
+                department = department,
+                semester = semester,
+                profilePicUrl = profilePicUrl
+            )
+            
+            Log.d("AuthRepository", "Setting updated profile as _currentUser")
+            _currentUser.value = updatedUser
+            updatedUser
+        }.onFailure { error ->
+            Log.e("AuthRepository", "Profile update failed with exception", error)
+        }
+    }
+
+    override suspend fun handleDeepLinkSession(accessToken: String, refreshToken: String): Result<User> = withContext(Dispatchers.IO) {
+        runCatching {
+            Log.d("AuthRepository", "Handling deep link session token exchange...")
+            
+            // 1. Fetch Auth user details
+            val authUser = try {
+                supabaseApiService.getCurrentUser(SUPABASE_API_KEY, "Bearer $accessToken")
+            } catch (e: Exception) {
+                Log.e("AuthRepository", "Failed to retrieve current user from Auth", e)
+                throw e
+            }
+            Log.d("AuthRepository", "User details retrieved: ID = ${authUser.id}, Email = ${authUser.email}")
+            
+            // 2. Extract profile details from metadata or public database
+            val name = authUser.userMetadata?.get("name") ?: authUser.email.substringBefore("@")
+            val regNumber = authUser.userMetadata?.get("register_number") ?: ""
+            val department = authUser.userMetadata?.get("department") ?: ""
+            val semester = authUser.userMetadata?.get("semester") ?: ""
+            
+            // Fetch database profile
+            Log.d("AuthRepository", "Fetching database profile for verification...")
+            val profileList = runCatching {
+                supabaseApiService.getUserProfile(SUPABASE_API_KEY, "Bearer $accessToken", "eq.${authUser.id}")
+            }.getOrNull()
+            val profile = profileList?.firstOrNull()
+            
+            if (profile != null) {
+                Log.d("AuthRepository", "Verified profile in public.users: ${profile.name}")
+            } else {
+                Log.w("AuthRepository", "No database profile found for verified user. Initiating public.users fallback.")
+            }
+            
+            // 3. Save to local SessionManager
+            Log.d("AuthRepository", "Saving session to SessionManager from deep link")
+            sessionManager.saveSession(
+                accessToken = accessToken,
+                refreshToken = refreshToken,
+                userId = authUser.id,
+                email = authUser.email,
+                name = profile?.name ?: name
+            )
+            
+            val user = User(
+                uid = authUser.id,
+                name = profile?.name ?: name,
+                email = authUser.email,
+                registerNumber = profile?.registerNumber ?: regNumber,
+                department = profile?.department ?: department,
+                semester = profile?.semester ?: semester,
+                profilePicUrl = profile?.profileImageUrl ?: ""
+            )
+            
+            Log.d("AuthRepository", "Setting _currentUser on deep link authentication success")
+            _currentUser.value = user
+            user
+        }.onFailure { error ->
+            Log.e("AuthRepository", "Deep link authentication failed with exception", error)
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.acadex.app.presentation.navigation
 
+import android.util.Log
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -146,8 +147,12 @@ fun NavGraph() {
             composable(Screen.Register.route) {
                 RegisterScreen(
                     viewModel = authViewModel,
-                    onNavigateToLogin = { navController.popBackStack() },
+                    onNavigateToLogin = {
+                        Log.d("NavGraph", "Navigating from Register to Login (popBackStack)")
+                        navController.popBackStack()
+                    },
                     onRegisterSuccess = {
+                        Log.i("NavGraph", "onRegisterSuccess callback received, navigating to Home")
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Register.route) { inclusive = true }
                         }

@@ -124,6 +124,7 @@ interface SupabaseApiService {
     @POST("auth/v1/signup")
     suspend fun signUp(
         @Header("apikey") apiKey: String,
+        @Query("redirect_to") redirectTo: String,
         @Body body: SignUpRequest
     ): SignUpResponse
 
@@ -136,6 +137,7 @@ interface SupabaseApiService {
     @POST("auth/v1/recover")
     suspend fun recoverPassword(
         @Header("apikey") apiKey: String,
+        @Query("redirect_to") redirectTo: String,
         @Body body: RecoverRequest
     )
 
