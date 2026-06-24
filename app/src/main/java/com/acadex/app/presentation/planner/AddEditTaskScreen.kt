@@ -117,11 +117,11 @@ fun AddEditTaskScreen(
                             id = taskId ?: "",
                             title = title,
                             description = description,
-                            date = date,
+                            dueDate = date,
                             startTime = startTime,
                             endTime = endTime,
                             type = type,
-                            isCompleted = false
+                            completed = false
                         )
                         if (isEditMode) {
                             viewModel.updateTask(task, onSuccess = onNavigateBack)

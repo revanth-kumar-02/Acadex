@@ -83,8 +83,8 @@ class PlannerRepositoryImpl @Inject constructor(
             userId = userId,
             title = task.title,
             description = task.description,
-            date = task.date,
-            completed = task.isCompleted
+            date = task.dueDate,
+            completed = task.completed
         )
         supabaseApiService.createPlannerTask(SUPABASE_API_KEY, "Bearer $token", dto)
     }
@@ -94,8 +94,8 @@ class PlannerRepositoryImpl @Inject constructor(
         val updates = mapOf<String, Any>(
             "title" to task.title,
             "description" to task.description,
-            "date" to task.date,
-            "completed" to task.isCompleted
+            "date" to task.dueDate,
+            "completed" to task.completed
         )
         supabaseApiService.updatePlannerTask(SUPABASE_API_KEY, "Bearer $token", "eq.${task.id}", updates)
     }
@@ -109,10 +109,10 @@ class PlannerRepositoryImpl @Inject constructor(
         id = id ?: "",
         title = title,
         description = description,
-        date = date,
+        dueDate = date,
         startTime = "",
         endTime = "",
         type = TaskType.TASK,
-        isCompleted = completed
+        completed = completed
     )
 }

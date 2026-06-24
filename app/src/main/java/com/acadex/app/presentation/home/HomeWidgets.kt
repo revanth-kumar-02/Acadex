@@ -184,6 +184,7 @@ private fun StatItemCard(
 @Composable
 fun QuickActionsWidget(
     onAddNote: () -> Unit,
+    onAddAssignment: () -> Unit,
     onAddTask: () -> Unit,
     onAddExam: () -> Unit
 ) {
@@ -203,6 +204,13 @@ fun QuickActionsWidget(
                 icon = Icons.Default.Edit,
                 color = Primary,
                 onClick = onAddNote,
+                modifier = Modifier.weight(1f)
+            )
+            QuickActionButton(
+                label = "Add Assgn",
+                icon = Icons.Default.Add,
+                color = Success,
+                onClick = onAddAssignment,
                 modifier = Modifier.weight(1f)
             )
             QuickActionButton(
@@ -489,6 +497,136 @@ private fun ExamWidgetCard(exam: Exam, onClick: () -> Unit) {
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
             )
+        }
+    }
+}
+
+enum class DeadlineType {
+    ASSIGNMENT, TASK, EXAM
+}
+
+data class DeadlineItem(
+    val id: String,
+    val title: String,
+    val type: DeadlineType,
+    val dueDate: Long,
+    val daysRemaining: Int
+)
+
+@Composable
+fun UpcomingDeadlinesWidget(
+    deadlines: List<DeadlineItem>,
+    onItemClick: (DeadlineItem) -> Unit
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Upcoming Deadlines",
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "${deadlines.size} total",
+                style = MaterialTheme.typography.bodySmall,
+                color = Primary,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+        Spacer(modifier = Modifier.height(10.dp))
+        if (deadlines.isEmpty()) {
+            PremiumCard(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "No upcoming deadlines. Clean slate!",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                )
+            }
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                deadlines.take(5).forEach { item ->
+                    DeadlineRow(item = item, onClick = { onItemClick(item) })
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeadlineRow(item: DeadlineItem, onClick: () -> Unit) {
+    val dateStr = DateTimeUtils.formatDate(item.dueDate)
+    val typeColor = when (item.type) {
+        DeadlineType.ASSIGNMENT -> Primary
+        DeadlineType.TASK -> Secondary
+        DeadlineType.EXAM -> Accent
+    }
+    
+    PremiumCard(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onClick() }
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .background(typeColor.copy(alpha = 0.12f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = item.type.name,
+                            color = typeColor,
+                            style = MaterialTheme.typography.labelSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 9.sp
+                            )
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Due: $dateStr",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    )
+                }
+            }
+            
+            val countText = when {
+                item.daysRemaining > 1 -> "${item.daysRemaining} days left"
+                item.daysRemaining == 1 -> "Tomorrow"
+                item.daysRemaining == 0 -> "Today"
+                item.daysRemaining < 0 -> "${-item.daysRemaining} days overdue"
+                else -> "Today"
+            }
+            val countBg = if (item.daysRemaining <= 2) Color(0xFFEF4444).copy(alpha = 0.1f) else typeColor.copy(alpha = 0.1f)
+            val countColor = if (item.daysRemaining <= 2) Color(0xFFEF4444) else typeColor
+
+            Box(
+                modifier = Modifier
+                    .background(countBg, RoundedCornerShape(8.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = countText,
+                    color = countColor,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                )
+            }
         }
     }
 }

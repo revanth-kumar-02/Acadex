@@ -38,7 +38,7 @@ class PlannerViewModel @Inject constructor(
     ) { date, tasks, exams ->
         val selectedDay = date / 86400000
         val dailyTasks = tasks.filter {
-            val taskDay = it.date / 86400000
+            val taskDay = it.dueDate / 86400000
             taskDay == selectedDay
         }
         
@@ -61,7 +61,7 @@ class PlannerViewModel @Inject constructor(
     // Task CRUD
     fun toggleTaskCompletion(task: PlannerTask) {
         viewModelScope.launch {
-            plannerUseCases.updateTask(task.copy(isCompleted = !task.isCompleted))
+            plannerUseCases.updateTask(task.copy(completed = !task.completed))
         }
     }
 

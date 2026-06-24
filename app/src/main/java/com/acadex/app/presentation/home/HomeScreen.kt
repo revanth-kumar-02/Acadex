@@ -21,6 +21,7 @@ import com.acadex.app.presentation.components.LoadingState
 fun HomeScreen(
     viewModel: HomeViewModel,
     onNavigateToAddNote: () -> Unit,
+    onNavigateToAddAssignment: () -> Unit,
     onNavigateToPlanner: () -> Unit,
     onNavigateToAddExam: () -> Unit,
     onNavigateToAssignmentDetail: (String) -> Unit,
@@ -63,22 +64,22 @@ fun HomeScreen(
             // Quick Action Widgets
             QuickActionsWidget(
                 onAddNote = onNavigateToAddNote,
+                onAddAssignment = onNavigateToAddAssignment,
                 onAddTask = { onNavigateToPlanner() },
                 onAddExam = onNavigateToAddExam
             )
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Pending Assignments Widget
-            PendingAssignmentsWidget(
-                assignments = dashboardState.pendingAssignments,
-                onAssignmentClick = onNavigateToAssignmentDetail
-            )
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Upcoming Exams Widget
-            UpcomingExamsWidget(
-                exams = dashboardState.upcomingExams,
-                onExamClick = onNavigateToExamDetail
+            // Unified Upcoming Deadlines Widget
+            UpcomingDeadlinesWidget(
+                deadlines = dashboardState.upcomingDeadlines,
+                onItemClick = { item ->
+                    when (item.type) {
+                        DeadlineType.ASSIGNMENT -> onNavigateToAssignmentDetail(item.id)
+                        DeadlineType.TASK -> onNavigateToPlanner()
+                        DeadlineType.EXAM -> onNavigateToExamDetail(item.id)
+                    }
+                }
             )
             Spacer(modifier = Modifier.height(24.dp))
         }

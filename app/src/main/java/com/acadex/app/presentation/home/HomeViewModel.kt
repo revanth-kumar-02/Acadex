@@ -27,6 +27,7 @@ data class DashboardState(
     val upcomingExams: List<Exam> = emptyList(),
     val recentNotes: List<Note> = emptyList(),
     val todayTasks: List<PlannerTask> = emptyList(),
+    val upcomingDeadlines: List<DeadlineItem> = emptyList(),
     val stats: AcademicStats = AcademicStats()
 )
 
@@ -97,10 +98,60 @@ class HomeViewModel @Inject constructor(
         
         val today = System.currentTimeMillis()
         val todayTasks = tasks.filter {
-            val taskDay = it.date / (86400000)
+            val taskDay = it.dueDate / (86400000)
             val todayDay = today / (86400000)
             taskDay == todayDay
         }
+
+        // Aggregate upcoming deadlines
+        val deadlineItems = mutableListOf<DeadlineItem>()
+        
+        // 1. Pending Assignments
+        pendingAssignments.forEach { assignment ->
+            val diff = assignment.dueDate - today
+            val days = (diff / (86400000)).toInt()
+            deadlineItems.add(
+                DeadlineItem(
+                    id = assignment.id,
+                    title = assignment.title,
+                    type = DeadlineType.ASSIGNMENT,
+                    dueDate = assignment.dueDate,
+                    daysRemaining = days
+                )
+            )
+        }
+
+        // 2. Uncompleted Tasks
+        tasks.filter { !it.completed }.forEach { task ->
+            val diff = task.dueDate - today
+            val days = (diff / (86400000)).toInt()
+            deadlineItems.add(
+                DeadlineItem(
+                    id = task.id,
+                    title = task.title,
+                    type = DeadlineType.TASK,
+                    dueDate = task.dueDate,
+                    daysRemaining = days
+                )
+            )
+        }
+
+        // 3. Upcoming Exams
+        upcomingExams.forEach { exam ->
+            val diff = exam.dateTime - today
+            val days = (diff / (86400000)).toInt()
+            deadlineItems.add(
+                DeadlineItem(
+                    id = exam.id,
+                    title = "${exam.subject} - ${exam.examName}",
+                    type = DeadlineType.EXAM,
+                    dueDate = exam.dateTime,
+                    daysRemaining = days
+                )
+            )
+        }
+
+        val sortedDeadlines = deadlineItems.sortedBy { it.dueDate }
 
         val avgRevision = if (exams.isNotEmpty()) {
             exams.map { it.revisionProgress }.average().toFloat()
@@ -112,6 +163,7 @@ class HomeViewModel @Inject constructor(
             upcomingExams = upcomingExams,
             recentNotes = recentNotes,
             todayTasks = todayTasks,
+            upcomingDeadlines = sortedDeadlines,
             stats = AcademicStats(
                 completedAssignmentsCount = completedCount,
                 totalNotesCount = notes.size,

@@ -173,6 +173,7 @@ fun NavGraph() {
                 HomeScreen(
                     viewModel = homeViewModel,
                     onNavigateToAddNote = { navController.navigate(Screen.AddEditNote.createRoute(null)) },
+                    onNavigateToAddAssignment = { navController.navigate(Screen.AddEditAssignment.createRoute(null)) },
                     onNavigateToPlanner = { navController.navigate(Screen.Planner.route) },
                     onNavigateToAddExam = { navController.navigate(Screen.AddEditExam.createRoute(null)) },
                     onNavigateToAssignmentDetail = { id -> navController.navigate(Screen.AddEditAssignment.createRoute(id)) },

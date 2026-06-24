@@ -198,7 +198,7 @@ fun PlannerTaskRow(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Checkbox(
-                checked = task.isCompleted,
+                checked = task.completed,
                 onCheckedChange = { onToggleCompletion() },
                 colors = CheckboxDefaults.colors(checkedColor = Success)
             )
@@ -209,9 +209,9 @@ fun PlannerTaskRow(
                     text = task.title,
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        textDecoration = if (task.isCompleted) TextDecoration.LineThrough else null
+                        textDecoration = if (task.completed) TextDecoration.LineThrough else null
                     ),
-                    color = if (task.isCompleted) MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onBackground
+                    color = if (task.completed) MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f) else MaterialTheme.colorScheme.onBackground
                 )
                 if (task.startTime.isNotEmpty()) {
                     Text(
