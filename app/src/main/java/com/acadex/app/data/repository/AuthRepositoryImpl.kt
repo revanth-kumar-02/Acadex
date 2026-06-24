@@ -33,11 +33,13 @@ class AuthRepositoryImpl @Inject constructor(
                 // Fetch details from Firestore in background
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        val snapshot = firebaseService.firestore.collection("users")
-                            .document(firebaseUser.uid)
-                            .get()
-                            .await()
-                        if (snapshot.exists()) {
+                        val snapshot = kotlinx.coroutines.withTimeoutOrNull(3000) {
+                            firebaseService.firestore.collection("users")
+                                .document(firebaseUser.uid)
+                                .get()
+                                .await()
+                        }
+                        if (snapshot != null && snapshot.exists()) {
                             val user = User(
                                 uid = firebaseUser.uid,
                                 name = snapshot.getString("name") ?: "",
@@ -49,7 +51,7 @@ class AuthRepositoryImpl @Inject constructor(
                             )
                             _currentUser.value = user
                         } else {
-                            // Document doesn't exist yet, build placeholder
+                            // Document doesn't exist yet or timeout occurred, build placeholder
                             _currentUser.value = User(firebaseUser.uid, firebaseUser.displayName ?: "", firebaseUser.email ?: "")
                         }
                     } catch (e: Exception) {

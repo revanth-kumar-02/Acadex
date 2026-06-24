@@ -69,7 +69,7 @@ fun RegisterScreen(
     val scrollState = rememberScrollState()
 
     LaunchedEffect(authState) {
-        if (authState is AuthState.Success) {
+        if (authState is AuthState.Success || authState is AuthState.Authenticated) {
             onRegisterSuccess()
             viewModel.resetState()
         }

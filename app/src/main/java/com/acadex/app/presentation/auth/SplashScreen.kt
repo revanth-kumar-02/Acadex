@@ -1,5 +1,6 @@
 package com.acadex.app.presentation.auth
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -27,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.acadex.app.presentation.components.GlassyCard
 import com.acadex.app.presentation.theme.Accent
 import com.acadex.app.presentation.theme.BrandGradient
+import kotlinx.coroutines.delay
 
 @Composable
 fun SplashScreen(
@@ -35,17 +40,42 @@ fun SplashScreen(
     onNavigateToLogin: () -> Unit
 ) {
     val authState by viewModel.authState.collectAsState()
+    var hasNavigated by remember { mutableStateOf(false) }
 
     LaunchedEffect(authState) {
+        Log.d("SplashScreen", "Auth state collected: $authState")
+        if (hasNavigated) return@LaunchedEffect
+
         when (authState) {
             is AuthState.Authenticated -> {
+                Log.d("SplashScreen", "Authenticated user found, navigating to Home")
+                hasNavigated = true
                 onNavigateToHome()
             }
             is AuthState.Unauthenticated -> {
+                Log.d("SplashScreen", "Unauthenticated session, navigating to Login")
+                hasNavigated = true
                 onNavigateToLogin()
             }
             else -> {
-                // Keep showing splash for Loading, Idle, Success, or Error states during startup
+                Log.d("SplashScreen", "Loading / Idle state: keeping splash visible")
+            }
+        }
+    }
+
+    // Safeguard: Timeout in 2 seconds
+    LaunchedEffect(Unit) {
+        delay(2000)
+        if (!hasNavigated) {
+            Log.d("SplashScreen", "Timeout (2s) reached. Resolving manually. Current state: $authState")
+            val user = viewModel.currentUser.value
+            hasNavigated = true
+            if (user != null) {
+                Log.d("SplashScreen", "Cached user session found via fallback, navigating to Home")
+                onNavigateToHome()
+            } else {
+                Log.d("SplashScreen", "No user session found, forcing redirect to Login")
+                onNavigateToLogin()
             }
         }
     }
