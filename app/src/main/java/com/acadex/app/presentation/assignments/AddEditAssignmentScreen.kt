@@ -1,4 +1,4 @@
-package com.acadex.app.presentation.planner
+package com.acadex.app.presentation.assignments
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -12,7 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -44,7 +44,7 @@ import com.acadex.app.presentation.theme.Primary
 @Composable
 fun AddEditAssignmentScreen(
     assignmentId: String?,
-    viewModel: PlannerViewModel,
+    viewModel: AssignmentsViewModel,
     onNavigateBack: () -> Unit
 ) {
     var title by remember { mutableStateOf("") }
@@ -97,7 +97,7 @@ fun AddEditAssignmentScreen(
             ) {
                 IconButton(onClick = onNavigateBack) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = MaterialTheme.colorScheme.onBackground
                     )

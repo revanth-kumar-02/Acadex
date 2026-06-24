@@ -16,10 +16,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.PlayArrow
+import com.acadex.app.utils.DateTimeUtils
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -76,8 +77,7 @@ fun NoteDetailScreen(
         return
     }
 
-    val sdf = SimpleDateFormat("dd MMM, yyyy - hh:mm a", Locale.getDefault())
-    val dateStr = sdf.format(Date(note!!.updatedAt))
+    val dateStr = DateTimeUtils.formatDateTime(note!!.updatedAt)
 
     Box(
         modifier = Modifier
@@ -96,7 +96,7 @@ fun NoteDetailScreen(
             ) {
                 IconButton(onClick = onNavigateBack) {
                     Icon(
-                        imageVector = Icons.Default.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = MaterialTheme.colorScheme.onBackground
                     )

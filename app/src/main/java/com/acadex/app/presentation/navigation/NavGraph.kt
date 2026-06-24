@@ -1,8 +1,5 @@
 package com.acadex.app.presentation.navigation
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -15,7 +12,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -35,7 +31,8 @@ import com.acadex.app.presentation.notes.AddEditNoteScreen
 import com.acadex.app.presentation.notes.NoteDetailScreen
 import com.acadex.app.presentation.notes.NotesScreen
 import com.acadex.app.presentation.notes.NotesViewModel
-import com.acadex.app.presentation.planner.AddEditAssignmentScreen
+import com.acadex.app.presentation.assignments.AddEditAssignmentScreen
+import com.acadex.app.presentation.assignments.AssignmentsViewModel
 import com.acadex.app.presentation.planner.AddEditExamScreen
 import com.acadex.app.presentation.planner.AddEditTaskScreen
 import com.acadex.app.presentation.planner.PlannerScreen
@@ -154,9 +151,7 @@ fun NavGraph() {
                 HomeScreen(
                     viewModel = homeViewModel,
                     onNavigateToAddNote = { navController.navigate(Screen.AddEditNote.createRoute(null)) },
-                    onNavigateToNotes = { navController.navigate(Screen.Notes.route) },
                     onNavigateToPlanner = { navController.navigate(Screen.Planner.route) },
-                    onNavigateToAddAssignment = { navController.navigate(Screen.AddEditAssignment.createRoute(null)) },
                     onNavigateToAddExam = { navController.navigate(Screen.AddEditExam.createRoute(null)) },
                     onNavigateToAssignmentDetail = { id -> navController.navigate(Screen.AddEditAssignment.createRoute(id)) },
                     onNavigateToExamDetail = { id -> navController.navigate(Screen.AddEditExam.createRoute(id)) }
@@ -168,8 +163,7 @@ fun NavGraph() {
                 NotesScreen(
                     viewModel = notesViewModel,
                     onNavigateToAddNote = { navController.navigate(Screen.AddEditNote.createRoute(null)) },
-                    onNavigateToNoteDetail = { id -> navController.navigate(Screen.NoteDetail.createRoute(id)) },
-                    onNavigateToEditNote = { id -> navController.navigate(Screen.AddEditNote.createRoute(id)) }
+                    onNavigateToNoteDetail = { id -> navController.navigate(Screen.NoteDetail.createRoute(id)) }
                 )
             }
 
@@ -177,8 +171,6 @@ fun NavGraph() {
                 val plannerViewModel: PlannerViewModel = hiltViewModel()
                 PlannerScreen(
                     viewModel = plannerViewModel,
-                    onNavigateToAddAssignment = { navController.navigate(Screen.AddEditAssignment.createRoute(null)) },
-                    onNavigateToAddExam = { navController.navigate(Screen.AddEditExam.createRoute(null)) },
                     onNavigateToAddTask = { date -> navController.navigate(Screen.AddEditTask.createRoute(null, date)) },
                     onNavigateToEditTask = { id -> navController.navigate(Screen.AddEditTask.createRoute(id, null)) }
                 )
@@ -235,10 +227,10 @@ fun NavGraph() {
                 })
             ) { backStackEntry ->
                 val assignmentId = backStackEntry.arguments?.getString("assignmentId")
-                val plannerViewModel: PlannerViewModel = hiltViewModel()
+                val assignmentsViewModel: AssignmentsViewModel = hiltViewModel()
                 AddEditAssignmentScreen(
                     assignmentId = assignmentId,
-                    viewModel = plannerViewModel,
+                    viewModel = assignmentsViewModel,
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

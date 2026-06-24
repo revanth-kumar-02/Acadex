@@ -57,8 +57,7 @@ import java.util.Locale
 fun NotesScreen(
     viewModel: NotesViewModel,
     onNavigateToAddNote: () -> Unit,
-    onNavigateToNoteDetail: (String) -> Unit,
-    onNavigateToEditNote: (String) -> Unit
+    onNavigateToNoteDetail: (String) -> Unit
 ) {
     val notes by viewModel.notesState.collectAsState()
     val query by viewModel.searchQuery.collectAsState()

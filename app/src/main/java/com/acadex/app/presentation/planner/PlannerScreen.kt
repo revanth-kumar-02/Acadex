@@ -17,12 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Checkbox
@@ -50,24 +47,21 @@ import com.acadex.app.presentation.theme.Primary
 import com.acadex.app.presentation.theme.Secondary
 import com.acadex.app.presentation.theme.Success
 import com.acadex.app.presentation.theme.Warning
+import com.acadex.app.utils.DateTimeUtils
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 @Composable
 fun PlannerScreen(
     viewModel: PlannerViewModel,
-    onNavigateToAddAssignment: () -> Unit,
-    onNavigateToAddExam: () -> Unit,
     onNavigateToAddTask: (Long) -> Unit,
     onNavigateToEditTask: (String) -> Unit
 ) {
     val state by viewModel.plannerState.collectAsState()
-    val calendar = Calendar.getInstance()
 
     // Generate weekly scroll: previous 3 days, today, next 10 days
-    val dates = rememberWeeklyDates()
+    val dates = DateTimeUtils.getWeeklyDates()
 
     Box(
         modifier = Modifier
@@ -98,7 +92,7 @@ fun PlannerScreen(
                 items(dates) { date ->
                     CalendarDayItem(
                         date = date,
-                        isSelected = isSameDay(date.time, state.selectedDate),
+                        isSelected = DateTimeUtils.isSameDay(date.time, state.selectedDate),
                         onClick = { viewModel.selectDate(date.time) }
                     )
                 }
@@ -256,23 +250,4 @@ fun PlannerTaskRow(
             }
         }
     }
-}
-
-@Composable
-fun rememberWeeklyDates(): List<Date> {
-    val list = mutableListOf<Date>()
-    val cal = Calendar.getInstance()
-    cal.add(Calendar.DAY_OF_YEAR, -3)
-    for (i in 0..14) {
-        list.add(cal.time)
-        cal.add(Calendar.DAY_OF_YEAR, 1)
-    }
-    return list
-}
-
-private fun isSameDay(time1: Long, time2: Long): Boolean {
-    val cal1 = Calendar.getInstance().apply { timeInMillis = time1 }
-    val cal2 = Calendar.getInstance().apply { timeInMillis = time2 }
-    return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
-           cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
 }

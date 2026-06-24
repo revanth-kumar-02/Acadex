@@ -4,7 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.List
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -58,7 +58,7 @@ data class BottomNavItem(
 
 val bottomNavItems = listOf(
     BottomNavItem("Home", Screen.Home.route, Icons.Default.Home),
-    BottomNavItem("Notes", Screen.Notes.route, Icons.Default.List),
+    BottomNavItem("Notes", Screen.Notes.route, Icons.AutoMirrored.Filled.List),
     BottomNavItem("Planner", Screen.Planner.route, Icons.Default.DateRange),
     BottomNavItem("Resources", Screen.Resources.route, Icons.Default.Info),
     BottomNavItem("Profile", Screen.Profile.route, Icons.Default.Person)

@@ -49,7 +49,7 @@ import com.acadex.app.presentation.theme.Accent
 import com.acadex.app.presentation.theme.Primary
 import com.acadex.app.presentation.theme.Secondary
 import com.acadex.app.presentation.theme.Success
-import java.text.SimpleDateFormat
+import com.acadex.app.utils.DateTimeUtils
 import java.util.Date
 import java.util.Locale
 
@@ -325,8 +325,7 @@ fun PendingAssignmentsWidget(
 
 @Composable
 private fun AssignmentRow(assignment: Assignment, onClick: () -> Unit) {
-    val formatter = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
-    val dueDateStr = formatter.format(Date(assignment.dueDate))
+    val dueDateStr = DateTimeUtils.formatDate(assignment.dueDate)
 
     PremiumCard(
         modifier = Modifier
@@ -411,8 +410,7 @@ fun UpcomingExamsWidget(
 
 @Composable
 private fun ExamWidgetCard(exam: Exam, onClick: () -> Unit) {
-    val dateForm = SimpleDateFormat("dd MMM, yyyy - hh:mm a", Locale.getDefault())
-    val dateStr = dateForm.format(Date(exam.dateTime))
+    val dateStr = DateTimeUtils.formatDateTime(exam.dateTime)
 
     PremiumCard(
         modifier = Modifier
@@ -476,7 +474,7 @@ private fun ExamWidgetCard(exam: Exam, onClick: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 LinearProgressIndicator(
-                    progress = exam.revisionProgress,
+                    progress = { exam.revisionProgress },
                     color = Secondary,
                     trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f),
                     modifier = Modifier
@@ -487,7 +485,7 @@ private fun ExamWidgetCard(exam: Exam, onClick: () -> Unit) {
             }
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = "Room: ${exam.room} | Max Marks: ${exam.maxMarks}",
+                text = "Time: $dateStr | Room: ${exam.room}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
             )
