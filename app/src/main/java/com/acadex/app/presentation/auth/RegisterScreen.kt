@@ -60,6 +60,7 @@ fun RegisterScreen(
     var name by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
     var regNumber by remember { mutableStateOf("") }
     var department by remember { mutableStateOf("") }
     var semester by remember { mutableStateOf("") }
@@ -172,6 +173,25 @@ fun RegisterScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
 
+                    // Confirm Password
+                    OutlinedTextField(
+                        value = confirmPassword,
+                        onValueChange = { confirmPassword = it },
+                        label = { Text("Confirm Password", color = Color.White.copy(alpha = 0.7f)) },
+                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = Color.White) },
+                        visualTransformation = PasswordVisualTransformation(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            focusedBorderColor = Accent,
+                            unfocusedBorderColor = Color.White.copy(alpha = 0.5f)
+                        ),
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
                     // Registration Number
                     OutlinedTextField(
                         value = regNumber,
@@ -232,7 +252,7 @@ fun RegisterScreen(
                     } else {
                         Button(
                             onClick = {
-                                viewModel.register(name, email, password, regNumber, department, semester)
+                                viewModel.register(name, email, password, confirmPassword, regNumber, department, semester)
                             },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                             shape = RoundedCornerShape(16.dp),

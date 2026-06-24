@@ -23,6 +23,9 @@ class AuthRepositoryImpl @Inject constructor(
     private val _currentUser = MutableStateFlow<User?>(null)
     override val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
 
+    private val _isInitialized = MutableStateFlow(false)
+    override val isInitialized: StateFlow<Boolean> = _isInitialized.asStateFlow()
+
     init {
         firebaseService.auth.addAuthStateListener { auth ->
             val firebaseUser = auth.currentUser
@@ -51,10 +54,13 @@ class AuthRepositoryImpl @Inject constructor(
                         }
                     } catch (e: Exception) {
                         _currentUser.value = User(firebaseUser.uid, firebaseUser.displayName ?: "", firebaseUser.email ?: "")
+                    } finally {
+                        _isInitialized.value = true
                     }
                 }
             } else {
                 _currentUser.value = null
+                _isInitialized.value = true
             }
         }
     }
@@ -104,13 +110,15 @@ class AuthRepositoryImpl @Inject constructor(
 
         // Save to firestore
         val userMap = mapOf(
-            "uid" to user.uid,
+            "userId" to user.uid,
+            "uid" to user.uid, // Keep for backward compatibility
             "name" to user.name,
             "email" to user.email,
             "registerNumber" to user.registerNumber,
             "department" to user.department,
             "semester" to user.semester,
-            "profilePicUrl" to user.profilePicUrl
+            "profilePicUrl" to user.profilePicUrl,
+            "createdAt" to System.currentTimeMillis()
         )
         
         firebaseService.firestore.collection("users")

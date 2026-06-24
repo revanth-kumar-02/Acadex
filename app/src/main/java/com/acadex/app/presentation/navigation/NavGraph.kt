@@ -25,6 +25,7 @@ import com.acadex.app.presentation.auth.AuthViewModel
 import com.acadex.app.presentation.auth.ForgotPasswordScreen
 import com.acadex.app.presentation.auth.LoginScreen
 import com.acadex.app.presentation.auth.RegisterScreen
+import com.acadex.app.presentation.auth.SplashScreen
 import com.acadex.app.presentation.home.HomeScreen
 import com.acadex.app.presentation.home.HomeViewModel
 import com.acadex.app.presentation.notes.AddEditNoteScreen
@@ -47,7 +48,6 @@ import com.acadex.app.presentation.theme.Primary
 fun NavGraph() {
     val navController = rememberNavController()
     val authViewModel: AuthViewModel = hiltViewModel()
-    val currentUser by authViewModel.currentUser.collectAsState()
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -62,7 +62,7 @@ fun NavGraph() {
     )
 
     // Determine starting route depending on login state
-    val startDestination = if (currentUser != null) Screen.Home.route else Screen.Login.route
+    val startDestination = Screen.Splash.route
 
     Scaffold(
         bottomBar = {
@@ -112,6 +112,23 @@ fun NavGraph() {
             startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
+            // Splash Screen Routing Guard
+            composable(Screen.Splash.route) {
+                SplashScreen(
+                    viewModel = authViewModel,
+                    onNavigateToHome = {
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToLogin = {
+                        navController.navigate(Screen.Login.route) {
+                            popUpTo(Screen.Splash.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
+
             // Auth Graphs
             composable(Screen.Login.route) {
                 LoginScreen(
