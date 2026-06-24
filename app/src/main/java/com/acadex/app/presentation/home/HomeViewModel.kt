@@ -8,7 +8,6 @@ import com.acadex.app.data.remote.QuoteDto
 import com.acadex.app.domain.model.*
 import com.acadex.app.domain.repository.AuthRepository
 import com.acadex.app.domain.usecase.AssignmentUseCases
-import com.acadex.app.domain.usecase.ExamUseCases
 import com.acadex.app.domain.usecase.NotesUseCases
 import com.acadex.app.domain.usecase.PlannerUseCases
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,7 +23,6 @@ import javax.inject.Inject
 data class DashboardState(
     val user: User? = null,
     val pendingAssignments: List<Assignment> = emptyList(),
-    val upcomingExams: List<Exam> = emptyList(),
     val recentNotes: List<Note> = emptyList(),
     val todayTasks: List<PlannerTask> = emptyList(),
     val upcomingDeadlines: List<DeadlineItem> = emptyList(),
@@ -33,9 +31,7 @@ data class DashboardState(
 
 data class AcademicStats(
     val completedAssignmentsCount: Int = 0,
-    val totalNotesCount: Int = 0,
-    val examCount: Int = 0,
-    val revisionAverage: Float = 0f
+    val totalNotesCount: Int = 0
 )
 
 @HiltViewModel
@@ -43,7 +39,6 @@ class HomeViewModel @Inject constructor(
     authRepository: AuthRepository,
     notesUseCases: NotesUseCases,
     assignmentUseCases: AssignmentUseCases,
-    examUseCases: ExamUseCases,
     plannerUseCases: PlannerUseCases,
     private val apiService: ApiService
 ) : ViewModel() {
@@ -88,12 +83,10 @@ class HomeViewModel @Inject constructor(
         authRepository.currentUser,
         notesUseCases.getNotes(),
         assignmentUseCases.getAssignments(),
-        examUseCases.getExams(),
         plannerUseCases.getAllTasks()
-    ) { user, notes, assignments, exams, tasks ->
+    ) { user, notes, assignments, tasks ->
         val pendingAssignments = assignments.filter { it.status != AssignmentStatus.COMPLETED }
         val completedCount = assignments.count { it.status == AssignmentStatus.COMPLETED }
-        val upcomingExams = exams.filter { it.dateTime > System.currentTimeMillis() }
         val recentNotes = notes.take(5)
         
         val today = System.currentTimeMillis()
@@ -136,39 +129,17 @@ class HomeViewModel @Inject constructor(
             )
         }
 
-        // 3. Upcoming Exams
-        upcomingExams.forEach { exam ->
-            val diff = exam.dateTime - today
-            val days = (diff / (86400000)).toInt()
-            deadlineItems.add(
-                DeadlineItem(
-                    id = exam.id,
-                    title = "${exam.subject} - ${exam.examName}",
-                    type = DeadlineType.EXAM,
-                    dueDate = exam.dateTime,
-                    daysRemaining = days
-                )
-            )
-        }
-
         val sortedDeadlines = deadlineItems.sortedBy { it.dueDate }
-
-        val avgRevision = if (exams.isNotEmpty()) {
-            exams.map { it.revisionProgress }.average().toFloat()
-        } else 0f
 
         DashboardState(
             user = user,
             pendingAssignments = pendingAssignments,
-            upcomingExams = upcomingExams,
             recentNotes = recentNotes,
             todayTasks = todayTasks,
             upcomingDeadlines = sortedDeadlines,
             stats = AcademicStats(
                 completedAssignmentsCount = completedCount,
-                totalNotesCount = notes.size,
-                examCount = exams.size,
-                revisionAverage = avgRevision
+                totalNotesCount = notes.size
             )
         )
     }.stateIn(

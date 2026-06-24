@@ -3,7 +3,7 @@ package com.acadex.app.presentation.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -18,8 +18,8 @@ sealed class Screen(val route: String) {
     // Bottom Navigation Routes
     object Home : Screen("home")
     object Notes : Screen("notes")
+    object Assignments : Screen("assignments")
     object Planner : Screen("planner")
-    object Resources : Screen("resources")
     object Profile : Screen("profile")
 
     // Detail / Action Routes
@@ -46,9 +46,6 @@ sealed class Screen(val route: String) {
             }
         }
     }
-    object AddEditExam : Screen("add_edit_exam?examId={examId}") {
-        fun createRoute(examId: String?) = if (examId != null) "add_edit_exam?examId=$examId" else "add_edit_exam"
-    }
 }
 
 data class BottomNavItem(
@@ -60,7 +57,7 @@ data class BottomNavItem(
 val bottomNavItems = listOf(
     BottomNavItem("Home", Screen.Home.route, Icons.Default.Home),
     BottomNavItem("Notes", Screen.Notes.route, Icons.AutoMirrored.Filled.List),
+    BottomNavItem("Assignments", Screen.Assignments.route, Icons.Default.Check),
     BottomNavItem("Planner", Screen.Planner.route, Icons.Default.DateRange),
-    BottomNavItem("Resources", Screen.Resources.route, Icons.Default.Info),
     BottomNavItem("Profile", Screen.Profile.route, Icons.Default.Person)
 )

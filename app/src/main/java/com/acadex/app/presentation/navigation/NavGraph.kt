@@ -35,7 +35,7 @@ import com.acadex.app.presentation.notes.NotesScreen
 import com.acadex.app.presentation.notes.NotesViewModel
 import com.acadex.app.presentation.assignments.AddEditAssignmentScreen
 import com.acadex.app.presentation.assignments.AssignmentsViewModel
-import com.acadex.app.presentation.planner.AddEditExamScreen
+import com.acadex.app.presentation.assignments.AssignmentsScreen
 import com.acadex.app.presentation.planner.AddEditTaskScreen
 import com.acadex.app.presentation.planner.PlannerScreen
 import com.acadex.app.presentation.planner.PlannerViewModel
@@ -57,8 +57,8 @@ fun NavGraph() {
     val showBottomBar = currentRoute in listOf(
         Screen.Home.route,
         Screen.Notes.route,
+        Screen.Assignments.route,
         Screen.Planner.route,
-        Screen.Resources.route,
         Screen.Profile.route
     )
 
@@ -175,9 +175,7 @@ fun NavGraph() {
                     onNavigateToAddNote = { navController.navigate(Screen.AddEditNote.createRoute(null)) },
                     onNavigateToAddAssignment = { navController.navigate(Screen.AddEditAssignment.createRoute(null)) },
                     onNavigateToPlanner = { navController.navigate(Screen.Planner.route) },
-                    onNavigateToAddExam = { navController.navigate(Screen.AddEditExam.createRoute(null)) },
-                    onNavigateToAssignmentDetail = { id -> navController.navigate(Screen.AddEditAssignment.createRoute(id)) },
-                    onNavigateToExamDetail = { id -> navController.navigate(Screen.AddEditExam.createRoute(id)) }
+                    onNavigateToAssignmentDetail = { id -> navController.navigate(Screen.AddEditAssignment.createRoute(id)) }
                 )
             }
 
@@ -199,9 +197,13 @@ fun NavGraph() {
                 )
             }
 
-            composable(Screen.Resources.route) {
-                val resourcesViewModel: ResourcesViewModel = hiltViewModel()
-                ResourcesScreen(viewModel = resourcesViewModel)
+            composable(Screen.Assignments.route) {
+                val assignmentsViewModel: AssignmentsViewModel = hiltViewModel()
+                AssignmentsScreen(
+                    viewModel = assignmentsViewModel,
+                    onNavigateToAddAssignment = { navController.navigate(Screen.AddEditAssignment.createRoute(null)) },
+                    onNavigateToAssignmentDetail = { id -> navController.navigate(Screen.AddEditAssignment.createRoute(id)) }
+                )
             }
 
             composable(Screen.Profile.route) {
@@ -283,22 +285,6 @@ fun NavGraph() {
                 )
             }
 
-            composable(
-                route = Screen.AddEditExam.route,
-                arguments = listOf(navArgument("examId") {
-                    type = NavType.StringType
-                    nullable = true
-                    defaultValue = null
-                })
-            ) { backStackEntry ->
-                val examId = backStackEntry.arguments?.getString("examId")
-                val plannerViewModel: PlannerViewModel = hiltViewModel()
-                AddEditExamScreen(
-                    examId = examId,
-                    viewModel = plannerViewModel,
-                    onNavigateBack = { navController.popBackStack() }
-                )
-            }
         }
     }
 }

@@ -90,16 +90,6 @@ data class PlannerTaskDto(
     @SerializedName("created_at") val createdAt: String? = null
 )
 
-data class ExamDto(
-    @SerializedName("id") val id: String? = null,
-    @SerializedName("user_id") val userId: String,
-    @SerializedName("subject") val subject: String,
-    @SerializedName("exam_date") val examDate: Long,
-    @SerializedName("exam_type") val examType: String,
-    @SerializedName("notes") val notes: String?,
-    @SerializedName("created_at") val createdAt: String? = null
-)
-
 data class ResourceDto(
     @SerializedName("id") val id: String? = null,
     @SerializedName("title") val title: String,
@@ -252,37 +242,6 @@ interface SupabaseApiService {
 
     @DELETE("rest/v1/planner_tasks")
     suspend fun deletePlannerTask(
-        @Header("apikey") apiKey: String,
-        @Header("Authorization") authHeader: String,
-        @Query("id") idFilter: String
-    )
-
-    // --- Exams (public.exams) ---
-    
-    @GET("rest/v1/exams")
-    suspend fun getExams(
-        @Header("apikey") apiKey: String,
-        @Header("Authorization") authHeader: String,
-        @Query("user_id") userIdFilter: String
-    ): List<ExamDto>
-
-    @POST("rest/v1/exams")
-    suspend fun createExam(
-        @Header("apikey") apiKey: String,
-        @Header("Authorization") authHeader: String,
-        @Body body: ExamDto
-    ): List<ExamDto>
-
-    @PATCH("rest/v1/exams")
-    suspend fun updateExam(
-        @Header("apikey") apiKey: String,
-        @Header("Authorization") authHeader: String,
-        @Query("id") idFilter: String,
-        @Body body: Map<String, Any>
-    ): List<ExamDto>
-
-    @DELETE("rest/v1/exams")
-    suspend fun deleteExam(
         @Header("apikey") apiKey: String,
         @Header("Authorization") authHeader: String,
         @Query("id") idFilter: String

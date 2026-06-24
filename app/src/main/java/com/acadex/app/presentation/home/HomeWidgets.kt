@@ -41,7 +41,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.acadex.app.domain.model.Assignment
 import com.acadex.app.domain.model.AssignmentPriority
-import com.acadex.app.domain.model.Exam
 import com.acadex.app.domain.model.User
 import com.acadex.app.presentation.components.GlassyCard
 import com.acadex.app.presentation.components.PremiumCard
@@ -136,13 +135,6 @@ fun StatsWidget(stats: AcademicStats) {
             modifier = Modifier.weight(1f),
             color = Primary
         )
-        StatItemCard(
-            title = "Revision",
-            value = "${(stats.revisionAverage * 100).toInt()}%",
-            subtitle = "Avg progress",
-            modifier = Modifier.weight(1f),
-            color = Secondary
-        )
     }
 }
 
@@ -185,8 +177,7 @@ private fun StatItemCard(
 fun QuickActionsWidget(
     onAddNote: () -> Unit,
     onAddAssignment: () -> Unit,
-    onAddTask: () -> Unit,
-    onAddExam: () -> Unit
+    onAddTask: () -> Unit
 ) {
     Column {
         Text(
@@ -218,13 +209,6 @@ fun QuickActionsWidget(
                 icon = Icons.Default.DateRange,
                 color = Secondary,
                 onClick = onAddTask,
-                modifier = Modifier.weight(1f)
-            )
-            QuickActionButton(
-                label = "Add Exam",
-                icon = Icons.Default.Star,
-                color = Accent,
-                onClick = onAddExam,
                 modifier = Modifier.weight(1f)
             )
         }
@@ -386,123 +370,8 @@ private fun AssignmentRow(assignment: Assignment, onClick: () -> Unit) {
     }
 }
 
-@Composable
-fun UpcomingExamsWidget(
-    exams: List<Exam>,
-    onExamClick: (String) -> Unit
-) {
-    Column {
-        Text(
-            text = "Upcoming Exams",
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        if (exams.isEmpty()) {
-            PremiumCard(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "No exams scheduled. Relax!",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-            }
-        } else {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                exams.take(2).forEach { exam ->
-                    ExamWidgetCard(exam = exam, onClick = { onExamClick(exam.id) })
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ExamWidgetCard(exam: Exam, onClick: () -> Unit) {
-    val dateStr = DateTimeUtils.formatDateTime(exam.dateTime)
-
-    PremiumCard(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable { onClick() }
-    ) {
-        Column {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = exam.examName,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = exam.subject,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = Primary,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                }
-                
-                // Countdown text
-                val diff = exam.dateTime - System.currentTimeMillis()
-                val daysLeft = (diff / (1000 * 60 * 60 * 24)).toInt()
-                val countText = when {
-                    daysLeft > 1 -> "$daysLeft days left"
-                    daysLeft == 1 -> "Tomorrow"
-                    daysLeft == 0 -> "Today"
-                    else -> "Ended"
-                }
-                val countBg = if (daysLeft <= 2) Color(0xFFEF4444).copy(alpha = 0.1f) else Primary.copy(alpha = 0.1f)
-                val countColor = if (daysLeft <= 2) Color(0xFFEF4444) else Primary
-
-                Box(
-                    modifier = Modifier
-                        .background(countBg, RoundedCornerShape(8.dp))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = countText,
-                        color = countColor,
-                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Revision Progress bar
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Revision: ${(exam.revisionProgress * 100).toInt()}%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                LinearProgressIndicator(
-                    progress = { exam.revisionProgress },
-                    color = Secondary,
-                    trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(6.dp)
-                        .clip(CircleShape)
-                )
-            }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = "Time: $dateStr | Room: ${exam.room}",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-            )
-        }
-    }
-}
-
 enum class DeadlineType {
-    ASSIGNMENT, TASK, EXAM
+    ASSIGNMENT, TASK
 }
 
 data class DeadlineItem(
@@ -561,7 +430,6 @@ private fun DeadlineRow(item: DeadlineItem, onClick: () -> Unit) {
     val typeColor = when (item.type) {
         DeadlineType.ASSIGNMENT -> Primary
         DeadlineType.TASK -> Secondary
-        DeadlineType.EXAM -> Accent
     }
     
     PremiumCard(

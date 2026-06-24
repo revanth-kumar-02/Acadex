@@ -23,9 +23,7 @@ fun HomeScreen(
     onNavigateToAddNote: () -> Unit,
     onNavigateToAddAssignment: () -> Unit,
     onNavigateToPlanner: () -> Unit,
-    onNavigateToAddExam: () -> Unit,
-    onNavigateToAssignmentDetail: (String) -> Unit,
-    onNavigateToExamDetail: (String) -> Unit
+    onNavigateToAssignmentDetail: (String) -> Unit
 ) {
     val dashboardState by viewModel.dashboardState.collectAsState()
     val quote by viewModel.quote.collectAsState()
@@ -65,8 +63,7 @@ fun HomeScreen(
             QuickActionsWidget(
                 onAddNote = onNavigateToAddNote,
                 onAddAssignment = onNavigateToAddAssignment,
-                onAddTask = { onNavigateToPlanner() },
-                onAddExam = onNavigateToAddExam
+                onAddTask = { onNavigateToPlanner() }
             )
             Spacer(modifier = Modifier.height(28.dp))
 
@@ -77,7 +74,6 @@ fun HomeScreen(
                     when (item.type) {
                         DeadlineType.ASSIGNMENT -> onNavigateToAssignmentDetail(item.id)
                         DeadlineType.TASK -> onNavigateToPlanner()
-                        DeadlineType.EXAM -> onNavigateToExamDetail(item.id)
                     }
                 }
             )

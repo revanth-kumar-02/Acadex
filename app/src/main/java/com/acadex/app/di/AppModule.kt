@@ -8,13 +8,11 @@ import com.acadex.app.data.remote.ApiService
 import com.acadex.app.data.remote.SupabaseApiService
 import com.acadex.app.data.repository.AuthRepositoryImpl
 import com.acadex.app.data.repository.AssignmentRepositoryImpl
-import com.acadex.app.data.repository.ExamRepositoryImpl
 import com.acadex.app.data.repository.NotesRepositoryImpl
 import com.acadex.app.data.repository.PlannerRepositoryImpl
 import com.acadex.app.data.repository.ResourceRepositoryImpl
 import com.acadex.app.domain.repository.AuthRepository
 import com.acadex.app.domain.repository.AssignmentRepository
-import com.acadex.app.domain.repository.ExamRepository
 import com.acadex.app.domain.repository.NotesRepository
 import com.acadex.app.domain.repository.PlannerRepository
 import com.acadex.app.domain.repository.ResourceRepository
@@ -49,10 +47,6 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindPlannerRepository(impl: PlannerRepositoryImpl): PlannerRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindExamRepository(impl: ExamRepositoryImpl): ExamRepository
 
     @Binds
     @Singleton

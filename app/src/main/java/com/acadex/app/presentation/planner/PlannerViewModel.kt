@@ -3,7 +3,6 @@ package com.acadex.app.presentation.planner
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.acadex.app.domain.model.*
-import com.acadex.app.domain.usecase.ExamUseCases
 import com.acadex.app.domain.usecase.PlannerUseCases
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,14 +17,12 @@ import javax.inject.Inject
 data class PlannerState(
     val selectedDate: Long = System.currentTimeMillis(),
     val tasksForSelectedDate: List<PlannerTask> = emptyList(),
-    val exams: List<Exam> = emptyList(),
     val allTasks: List<PlannerTask> = emptyList()
 )
 
 @HiltViewModel
 class PlannerViewModel @Inject constructor(
-    private val plannerUseCases: PlannerUseCases,
-    private val examUseCases: ExamUseCases
+    private val plannerUseCases: PlannerUseCases
 ) : ViewModel() {
 
     private val _selectedDate = MutableStateFlow(System.currentTimeMillis())
@@ -33,9 +30,8 @@ class PlannerViewModel @Inject constructor(
 
     val plannerState: StateFlow<PlannerState> = combine(
         _selectedDate,
-        plannerUseCases.getAllTasks(),
-        examUseCases.getExams()
-    ) { date, tasks, exams ->
+        plannerUseCases.getAllTasks()
+    ) { date, tasks ->
         val selectedDay = date / 86400000
         val dailyTasks = tasks.filter {
             val taskDay = it.dueDate / 86400000
@@ -45,7 +41,6 @@ class PlannerViewModel @Inject constructor(
         PlannerState(
             selectedDate = date,
             tasksForSelectedDate = dailyTasks,
-            exams = exams,
             allTasks = tasks
         )
     }.stateIn(
@@ -83,26 +78,6 @@ class PlannerViewModel @Inject constructor(
         }
     }
 
-    // Exam CRUD
-    fun createExam(exam: Exam, onSuccess: () -> Unit) {
-        viewModelScope.launch {
-            examUseCases.createExam(exam).onSuccess { onSuccess() }
-        }
-    }
-
-    fun updateExam(exam: Exam, onSuccess: () -> Unit) {
-        viewModelScope.launch {
-            examUseCases.updateExam(exam).onSuccess { onSuccess() }
-        }
-    }
-
-    fun deleteExam(id: String) {
-        viewModelScope.launch {
-            examUseCases.deleteExam(id)
-        }
-    }
-
     // Fetch details
     suspend fun getTaskById(id: String): PlannerTask? = plannerUseCases.getTaskById(id)
-    suspend fun getExamById(id: String): Exam? = examUseCases.getExamById(id)
 }
