@@ -1,7 +1,6 @@
 package com.acadex.app.data.remote
 
 import com.google.gson.annotations.SerializedName
-import okhttp3.MultipartBody
 import okhttp3.RequestBody
 import retrofit2.http.*
 
@@ -57,15 +56,17 @@ data class UserProfileDto(
     @SerializedName("updated_at") val updatedAt: String? = null
 )
 
+// NoteDto maps to public.resources table in V2
 data class NoteDto(
     @SerializedName("id") val id: String? = null,
-    @SerializedName("user_id") val userId: String,
     @SerializedName("title") val title: String,
-    @SerializedName("content") val content: String,
-    @SerializedName("subject") val subject: String,
-    @SerializedName("is_favorite") val isFavorite: Boolean,
-    @SerializedName("created_at") val createdAt: String? = null,
-    @SerializedName("updated_at") val updatedAt: String? = null
+    @SerializedName("category") val category: String,
+    @SerializedName("file_url") val fileUrl: String,
+    @SerializedName("subject") val subject: String? = null,
+    @SerializedName("broadcast_target") val broadcastTarget: String? = null,
+    @SerializedName("user_id") val uploadedBy: String? = null,
+    @SerializedName("uploaded_by_name") val uploadedByName: String? = null,
+    @SerializedName("created_at") val createdAt: String? = null
 )
 
 data class AssignmentDto(
@@ -77,6 +78,10 @@ data class AssignmentDto(
     @SerializedName("due_date") val dueDate: Long,
     @SerializedName("priority") val priority: String,
     @SerializedName("status") val status: String,
+    @SerializedName("broadcast_target") val broadcastTarget: String? = null,
+    @SerializedName("posted_by") val postedBy: String? = null,
+    @SerializedName("attachment_url") val attachmentUrl: String? = null,
+    @SerializedName("assigned_date") val assignedDate: Long? = null,
     @SerializedName("created_at") val createdAt: String? = null
 )
 
@@ -86,16 +91,17 @@ data class PlannerTaskDto(
     @SerializedName("title") val title: String,
     @SerializedName("description") val description: String,
     @SerializedName("date") val date: Long,
-    @SerializedName("completed") val completed: Boolean,
+    @SerializedName("is_completed") val completed: Boolean,
     @SerializedName("created_at") val createdAt: String? = null
 )
 
-data class ResourceDto(
+data class AnnouncementDto(
     @SerializedName("id") val id: String? = null,
+    @SerializedName("user_id") val userId: String,
     @SerializedName("title") val title: String,
-    @SerializedName("category") val category: String,
-    @SerializedName("file_url") val fileUrl: String,
-    @SerializedName("uploaded_by") val uploadedBy: String?,
+    @SerializedName("content") val content: String,
+    @SerializedName("broadcast_target") val broadcastTarget: String,
+    @SerializedName("author_name") val authorName: String,
     @SerializedName("created_at") val createdAt: String? = null
 )
 
@@ -154,31 +160,22 @@ interface SupabaseApiService {
         @Body updates: Map<String, String>
     ): List<UserProfileDto>
 
-    // --- Notes (public.notes) ---
+    // --- Notes/Shared Resources (public.resources) ---
     
-    @GET("rest/v1/notes")
+    @GET("rest/v1/resources")
     suspend fun getNotes(
         @Header("apikey") apiKey: String,
-        @Header("Authorization") authHeader: String,
-        @Query("user_id") userIdFilter: String
+        @Header("Authorization") authHeader: String
     ): List<NoteDto>
 
-    @POST("rest/v1/notes")
+    @POST("rest/v1/resources")
     suspend fun createNote(
         @Header("apikey") apiKey: String,
         @Header("Authorization") authHeader: String,
         @Body body: NoteDto
     ): List<NoteDto>
 
-    @PATCH("rest/v1/notes")
-    suspend fun updateNote(
-        @Header("apikey") apiKey: String,
-        @Header("Authorization") authHeader: String,
-        @Query("id") idFilter: String,
-        @Body body: Map<String, Any>
-    ): List<NoteDto>
-
-    @DELETE("rest/v1/notes")
+    @DELETE("rest/v1/resources")
     suspend fun deleteNote(
         @Header("apikey") apiKey: String,
         @Header("Authorization") authHeader: String,
@@ -191,7 +188,7 @@ interface SupabaseApiService {
     suspend fun getAssignments(
         @Header("apikey") apiKey: String,
         @Header("Authorization") authHeader: String,
-        @Query("user_id") userIdFilter: String
+        @Query("user_id") userIdFilter: String? = null
     ): List<AssignmentDto>
 
     @POST("rest/v1/assignments")
@@ -247,27 +244,20 @@ interface SupabaseApiService {
         @Query("id") idFilter: String
     )
 
-    // --- Resources (public.resources) ---
+    // --- Announcements (public.announcements) ---
     
-    @GET("rest/v1/resources")
-    suspend fun getResources(
+    @GET("rest/v1/announcements")
+    suspend fun getAnnouncements(
         @Header("apikey") apiKey: String,
         @Header("Authorization") authHeader: String
-    ): List<ResourceDto>
+    ): List<AnnouncementDto>
 
-    @POST("rest/v1/resources")
-    suspend fun createResource(
+    @POST("rest/v1/announcements")
+    suspend fun createAnnouncement(
         @Header("apikey") apiKey: String,
         @Header("Authorization") authHeader: String,
-        @Body body: ResourceDto
-    ): List<ResourceDto>
-
-    @DELETE("rest/v1/resources")
-    suspend fun deleteResource(
-        @Header("apikey") apiKey: String,
-        @Header("Authorization") authHeader: String,
-        @Query("id") idFilter: String
-    )
+        @Body body: AnnouncementDto
+    ): List<AnnouncementDto>
 
     // --- Storage Upload ---
     

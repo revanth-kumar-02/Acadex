@@ -10,7 +10,6 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -29,8 +28,8 @@ import com.acadex.app.presentation.auth.RegisterScreen
 import com.acadex.app.presentation.auth.SplashScreen
 import com.acadex.app.presentation.home.HomeScreen
 import com.acadex.app.presentation.home.HomeViewModel
+import com.acadex.app.presentation.home.AddAnnouncementScreen
 import com.acadex.app.presentation.notes.AddEditNoteScreen
-import com.acadex.app.presentation.notes.NoteDetailScreen
 import com.acadex.app.presentation.notes.NotesScreen
 import com.acadex.app.presentation.notes.NotesViewModel
 import com.acadex.app.presentation.assignments.AddEditAssignmentScreen
@@ -41,8 +40,6 @@ import com.acadex.app.presentation.planner.PlannerScreen
 import com.acadex.app.presentation.planner.PlannerViewModel
 import com.acadex.app.presentation.profile.ProfileScreen
 import com.acadex.app.presentation.profile.ProfileViewModel
-import com.acadex.app.presentation.resources.ResourcesScreen
-import com.acadex.app.presentation.resources.ResourcesViewModel
 import com.acadex.app.presentation.theme.Primary
 
 @Composable
@@ -53,7 +50,6 @@ fun NavGraph() {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
-    // Verify whether the current destination is a bottom-bar destination
     val showBottomBar = currentRoute in listOf(
         Screen.Home.route,
         Screen.Notes.route,
@@ -62,7 +58,6 @@ fun NavGraph() {
         Screen.Profile.route
     )
 
-    // Determine starting route depending on login state
     val startDestination = Screen.Splash.route
 
     Scaffold(
@@ -113,7 +108,6 @@ fun NavGraph() {
             startDestination = startDestination,
             modifier = Modifier.padding(innerPadding)
         ) {
-            // Splash Screen Routing Guard
             composable(Screen.Splash.route) {
                 SplashScreen(
                     viewModel = authViewModel,
@@ -130,7 +124,6 @@ fun NavGraph() {
                 )
             }
 
-            // Auth Graphs
             composable(Screen.Login.route) {
                 LoginScreen(
                     viewModel = authViewModel,
@@ -148,11 +141,9 @@ fun NavGraph() {
                 RegisterScreen(
                     viewModel = authViewModel,
                     onNavigateToLogin = {
-                        Log.d("NavGraph", "Navigating from Register to Login (popBackStack)")
                         navController.popBackStack()
                     },
                     onRegisterSuccess = {
-                        Log.i("NavGraph", "onRegisterSuccess callback received, navigating to Home")
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Register.route) { inclusive = true }
                         }
@@ -172,9 +163,9 @@ fun NavGraph() {
                 val homeViewModel: HomeViewModel = hiltViewModel()
                 HomeScreen(
                     viewModel = homeViewModel,
-                    onNavigateToAddNote = { navController.navigate(Screen.AddEditNote.createRoute(null)) },
                     onNavigateToAddAssignment = { navController.navigate(Screen.AddEditAssignment.createRoute(null)) },
-                    onNavigateToPlanner = { navController.navigate(Screen.Planner.route) },
+                    onNavigateToUploadNotes = { navController.navigate(Screen.AddEditNote.createRoute(null)) },
+                    onNavigateToPostAnnouncement = { navController.navigate(Screen.AddAnnouncement.route) },
                     onNavigateToAssignmentDetail = { id -> navController.navigate(Screen.AddEditAssignment.createRoute(id)) }
                 )
             }
@@ -184,7 +175,7 @@ fun NavGraph() {
                 NotesScreen(
                     viewModel = notesViewModel,
                     onNavigateToAddNote = { navController.navigate(Screen.AddEditNote.createRoute(null)) },
-                    onNavigateToNoteDetail = { id -> navController.navigate(Screen.NoteDetail.createRoute(id)) }
+                    onNavigateToNoteDetail = {}
                 )
             }
 
@@ -212,17 +203,11 @@ fun NavGraph() {
             }
 
             // Detail / Action Screens
-            composable(
-                route = Screen.NoteDetail.route,
-                arguments = listOf(navArgument("noteId") { type = NavType.StringType })
-            ) { backStackEntry ->
-                val noteId = backStackEntry.arguments?.getString("noteId") ?: ""
-                val notesViewModel: NotesViewModel = hiltViewModel()
-                NoteDetailScreen(
-                    noteId = noteId,
-                    viewModel = notesViewModel,
-                    onNavigateBack = { navController.popBackStack() },
-                    onNavigateToEdit = { id -> navController.navigate(Screen.AddEditNote.createRoute(id)) }
+            composable(Screen.AddAnnouncement.route) {
+                val homeViewModel: HomeViewModel = hiltViewModel()
+                AddAnnouncementScreen(
+                    viewModel = homeViewModel,
+                    onNavigateBack = { navController.popBackStack() }
                 )
             }
 
@@ -284,7 +269,6 @@ fun NavGraph() {
                     onNavigateBack = { navController.popBackStack() }
                 )
             }
-
         }
     }
 }

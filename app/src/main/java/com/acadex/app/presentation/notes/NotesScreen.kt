@@ -1,5 +1,7 @@
 package com.acadex.app.presentation.notes
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,17 +17,19 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,12 +37,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,221 +52,249 @@ import com.acadex.app.presentation.components.EmptyState
 import com.acadex.app.presentation.components.PremiumCard
 import com.acadex.app.presentation.theme.Primary
 import com.acadex.app.presentation.theme.Secondary
-import com.acadex.app.presentation.theme.Warning
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
+import com.acadex.app.utils.DateTimeUtils
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NotesScreen(
     viewModel: NotesViewModel,
     onNavigateToAddNote: () -> Unit,
     onNavigateToNoteDetail: (String) -> Unit
 ) {
+    val context = LocalContext.current
     val notes by viewModel.notesState.collectAsState()
     val query by viewModel.searchQuery.collectAsState()
-    val showFavs by viewModel.showOnlyFavorites.collectAsState()
+    val selectedCat by viewModel.selectedCategory.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
 
-    // Auto sync on entry
-    LaunchedEffect(Unit) {
-        viewModel.syncNotes()
-    }
+    val categories = listOf("Notes", "PDF", "Document", "Study Resource")
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 20.dp)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp)
+        ) {
             Spacer(modifier = Modifier.height(20.dp))
-            Text(
-                text = "My Notes",
-                style = MaterialTheme.typography.headlineMedium.copy(
-                    fontWeight = FontWeight.Bold,
-                    letterSpacing = (-0.5).sp
-                ),
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Search Bar & Filter Row
+            
+            // Screen Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                OutlinedTextField(
-                    value = query,
-                    onValueChange = { viewModel.setSearchQuery(it) },
-                    placeholder = { Text("Search your notes...") },
-                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
-                    singleLine = true,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                Text(
+                    text = "Shared Notes",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = (-0.5).sp
                     ),
-                    modifier = Modifier.weight(1f)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                Spacer(modifier = Modifier.width(10.dp))
-
-                // Favorite Toggle Button
-                IconButton(
-                    onClick = { viewModel.toggleFavoritesFilter() },
+                
+                Box(
                     modifier = Modifier
-                        .background(
-                            if (showFavs) Warning.copy(alpha = 0.1f) else MaterialTheme.colorScheme.surfaceVariant,
-                            RoundedCornerShape(16.dp)
-                        )
-                        .size(52.dp)
+                        .background(Secondary.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
                 ) {
-                    Icon(
-                        imageVector = if (showFavs) Icons.Default.Star else Icons.Default.FavoriteBorder,
-                        contentDescription = "Filter Favorites",
-                        tint = if (showFavs) Warning else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                    Text(
+                        text = "${notes.size} files",
+                        color = Secondary,
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                     )
                 }
             }
+            Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(20.dp))
+            // Search Field
+            OutlinedTextField(
+                value = query,
+                onValueChange = { viewModel.setSearchQuery(it) },
+                placeholder = { Text("Search notes or subjects...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                singleLine = true,
+                shape = RoundedCornerShape(16.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = Secondary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.1f)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Category filter chips
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                item {
+                    FilterChip(
+                        selected = selectedCat == null,
+                        onClick = { viewModel.selectCategory(null) },
+                        label = { Text("All") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Secondary.copy(alpha = 0.1f),
+                            selectedLabelColor = Secondary
+                        )
+                    )
+                }
+                items(categories) { cat ->
+                    FilterChip(
+                        selected = selectedCat == cat,
+                        onClick = { viewModel.selectCategory(cat) },
+                        label = { Text(cat) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = Secondary.copy(alpha = 0.1f),
+                            selectedLabelColor = Secondary
+                        )
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(16.dp))
 
             if (notes.isEmpty()) {
                 EmptyState(
                     icon = Icons.Default.Info,
                     title = "No notes found",
-                    description = if (showFavs) "Try disabling the favorites filter." else "Get started by creating your first academic study note!",
-                    actionText = if (!showFavs) "Create Note" else null,
-                    onActionClick = if (!showFavs) onNavigateToAddNote else null
+                    description = if (query.isNotEmpty() || selectedCat != null) {
+                        "Adjust your filters or query to find files"
+                    } else {
+                        "Upload and broadcast PDFs, notes, or study resources to your department!"
+                    }
                 )
             } else {
                 LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(bottom = 80.dp),
-                    modifier = Modifier.fillMaxSize()
+                    contentPadding = PaddingValues(bottom = 80.dp)
                 ) {
                     items(notes, key = { it.id }) { note ->
-                        NoteCard(
+                        NoteItemCard(
                             note = note,
-                            onClick = { onNavigateToNoteDetail(note.id) },
-                            onFavoriteClick = { viewModel.toggleFavorite(note.id, !note.isFavorite) },
-                            onDeleteClick = { viewModel.deleteNote(note.id) }
+                            currentUserId = currentUser?.uid ?: "",
+                            onClick = {
+                                if (note.fileUrl.isNotEmpty()) {
+                                    runCatching {
+                                        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(note.fileUrl))
+                                        context.startActivity(intent)
+                                    }
+                                }
+                            },
+                            onDeleteClick = {
+                                viewModel.deleteNote(note.id)
+                            }
                         )
                     }
                 }
             }
         }
 
-        // Floating Action Button
+        // Floating Action Button to Upload Notes
         FloatingActionButton(
             onClick = onNavigateToAddNote,
-            containerColor = Primary,
+            containerColor = Secondary,
             contentColor = Color.White,
-            shape = RoundedCornerShape(20.dp),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(bottom = 20.dp)
+                .padding(24.dp)
         ) {
-            Icon(Icons.Default.Add, contentDescription = "Add Note")
+            Icon(Icons.Default.Add, contentDescription = "Upload Notes")
         }
     }
 }
 
 @Composable
-fun NoteCard(
+private fun NoteItemCard(
     note: Note,
+    currentUserId: String,
     onClick: () -> Unit,
-    onFavoriteClick: () -> Unit,
     onDeleteClick: () -> Unit
 ) {
-    val sdf = SimpleDateFormat("dd MMM, yyyy", Locale.getDefault())
-    val dateStr = sdf.format(Date(note.updatedAt))
-
     PremiumCard(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() }
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                // Category Label
-                Box(
-                    modifier = Modifier
-                        .background(Secondary.copy(alpha = 0.1f), RoundedCornerShape(6.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = note.subject.uppercase(Locale.getDefault()),
-                        color = Secondary,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold
+                        text = note.title,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onBackground,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "${note.subject} • ${note.category}",
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = Secondary
                     )
                 }
-                Spacer(modifier = Modifier.height(6.dp))
-                
-                Text(
-                    text = note.title,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = note.content,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = dateStr,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-                    )
-                    if (note.pdfUrl != null) {
-                        Spacer(modifier = Modifier.width(10.dp))
-                        Box(
-                            modifier = Modifier
-                                .background(Color(0xFFEF4444).copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                                .padding(horizontal = 4.dp, vertical = 2.dp)
-                        ) {
-                            Text(
-                                text = "PDF",
-                                color = Color(0xFFEF4444),
-                                fontSize = 9.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+
+                // Delete Button for owner
+                if (note.uploadedBy == currentUserId) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.width(8.dp))
-            Column {
-                // Favorite Toggle
-                IconButton(onClick = onFavoriteClick) {
-                    Icon(
-                        imageVector = if (note.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = "Toggle Favorite",
-                        tint = if (note.isFavorite) Warning else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
+            if (note.fileName.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(text = "📄", fontSize = 12.sp, modifier = Modifier.padding(end = 6.dp))
+                    Text(
+                        text = note.fileName,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
-                // Delete
-                IconButton(onClick = onDeleteClick) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete Note",
-                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-                    )
-                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = DateTimeUtils.formatDate(note.createdAt),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                )
+                Text(
+                    text = "Uploaded by ${note.uploadedByName}",
+                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f)
+                )
             }
         }
     }

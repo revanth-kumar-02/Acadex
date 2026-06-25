@@ -4,8 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.acadex.app.domain.model.User
 import com.acadex.app.domain.repository.AuthRepository
-import com.acadex.app.domain.usecase.AssignmentUseCases
-import com.acadex.app.domain.usecase.NotesUseCases
+import com.acadex.app.domain.repository.AssignmentRepository
+import com.acadex.app.domain.repository.NotesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,8 +27,8 @@ data class ProfileState(
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    notesUseCases: NotesUseCases,
-    assignmentUseCases: AssignmentUseCases
+    private val notesRepository: NotesRepository,
+    private val assignmentRepository: AssignmentRepository
 ) : ViewModel() {
 
     private val _isUpdating = MutableStateFlow(false)
@@ -36,8 +36,8 @@ class ProfileViewModel @Inject constructor(
 
     val profileState: StateFlow<ProfileState> = combine(
         authRepository.currentUser,
-        notesUseCases.getNotes(),
-        assignmentUseCases.getAssignments(),
+        notesRepository.getNotesFlow(),
+        assignmentRepository.getAssignmentsFlow(),
         _isUpdating,
         _updateError
     ) { user, notes, assignments, updating, error ->

@@ -1,36 +1,45 @@
 package com.acadex.app.presentation.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.acadex.app.presentation.components.EmptyState
 import com.acadex.app.presentation.components.LoadingState
 
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel,
-    onNavigateToAddNote: () -> Unit,
     onNavigateToAddAssignment: () -> Unit,
-    onNavigateToPlanner: () -> Unit,
+    onNavigateToUploadNotes: () -> Unit,
+    onNavigateToPostAnnouncement: () -> Unit,
     onNavigateToAssignmentDetail: (String) -> Unit
 ) {
-    val dashboardState by viewModel.dashboardState.collectAsState()
-    val quote by viewModel.quote.collectAsState()
-    val scrollState = rememberScrollState()
+    val state by viewModel.dashboardState.collectAsState()
 
-    if (dashboardState.user == null) {
-        LoadingState(message = "Loading academic dashboard...")
+    if (state.isLoading) {
+        LoadingState(message = "Loading department feed...")
         return
     }
 
@@ -39,45 +48,61 @@ fun HomeScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(20.dp)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 20.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Welcome Student
-            WelcomeHeader(user = dashboardState.user)
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Stat Cards
-            StatsWidget(stats = dashboardState.stats)
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Quote Widget
-            if (quote != null) {
-                QuoteWidget(quoteText = quote!!.quote, author = quote!!.author)
-                Spacer(modifier = Modifier.height(24.dp))
+            item {
+                WelcomeHeader(user = state.user)
+            }
+            
+            item {
+                QuickActionsWidget(
+                    onAddAssignment = onNavigateToAddAssignment,
+                    onUploadNotes = onNavigateToUploadNotes,
+                    onPostAnnouncement = onNavigateToPostAnnouncement
+                )
             }
 
-            // Quick Action Widgets
-            QuickActionsWidget(
-                onAddNote = onNavigateToAddNote,
-                onAddAssignment = onNavigateToAddAssignment,
-                onAddTask = { onNavigateToPlanner() }
-            )
-            Spacer(modifier = Modifier.height(28.dp))
+            item {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "Academic Feed",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
 
-            // Unified Upcoming Deadlines Widget
-            UpcomingDeadlinesWidget(
-                deadlines = dashboardState.upcomingDeadlines,
-                onItemClick = { item ->
-                    when (item.type) {
-                        DeadlineType.ASSIGNMENT -> onNavigateToAssignmentDetail(item.id)
-                        DeadlineType.TASK -> onNavigateToPlanner()
-                    }
+            if (state.feedItems.isEmpty()) {
+                item {
+                    EmptyState(
+                        icon = Icons.Default.Info,
+                        title = "Feed is empty",
+                        description = "No notes, assignments, or announcements have been broadcasted yet. Be the first to share one!"
+                    )
                 }
-            )
-            Spacer(modifier = Modifier.height(24.dp))
+            } else {
+                items(state.feedItems, key = { item ->
+                    when (item) {
+                        is FeedItem.AssignmentItem -> "assignment_${item.id}"
+                        is FeedItem.NotesItem -> "note_${item.id}"
+                        is FeedItem.AnnouncementItem -> "announcement_${item.id}"
+                    }
+                }) { feedItem ->
+                    FeedItemCard(
+                        item = feedItem,
+                        onAssignmentClick = onNavigateToAssignmentDetail,
+                        onAssignmentStatusToggle = { id, status ->
+                            viewModel.updateAssignmentStatus(id, status)
+                        }
+                    )
+                }
+            }
+            
+            item {
+                Spacer(modifier = Modifier.height(40.dp))
+            }
         }
     }
 }

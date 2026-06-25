@@ -3,7 +3,9 @@ package com.acadex.app.presentation.notes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.acadex.app.domain.model.Note
-import com.acadex.app.domain.usecase.NotesUseCases
+import com.acadex.app.domain.model.User
+import com.acadex.app.domain.repository.AuthRepository
+import com.acadex.app.domain.repository.NotesRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -17,29 +19,41 @@ import javax.inject.Inject
 
 @HiltViewModel
 class NotesViewModel @Inject constructor(
-    private val notesUseCases: NotesUseCases
+    private val notesRepository: NotesRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
-    private val _showOnlyFavorites = MutableStateFlow(false)
-    val showOnlyFavorites = _showOnlyFavorites.asStateFlow()
+    private val _selectedCategory = MutableStateFlow<String?>(null)
+    val selectedCategory = _selectedCategory.asStateFlow()
 
-    private val _isRefreshing = MutableStateFlow(false)
-    val isRefreshing = _isRefreshing.asStateFlow()
+    val currentUser: StateFlow<User?> = authRepository.currentUser
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
 
     val notesState: StateFlow<List<Note>> = combine(
-        notesUseCases.getNotes(),
+        notesRepository.getNotesFlow(),
         _searchQuery,
-        _showOnlyFavorites
-    ) { notes, query, favOnly ->
-        notes.filter { note ->
-            val matchesSearch = note.title.contains(query, ignoreCase = true) || 
-                                note.content.contains(query, ignoreCase = true) ||
-                                note.subject.contains(query, ignoreCase = true)
-            val matchesFav = !favOnly || note.isFavorite
-            matchesSearch && matchesFav
+        _selectedCategory,
+        authRepository.currentUser
+    ) { notes, query, category, user ->
+        if (user == null) {
+            emptyList()
+        } else {
+            val userDept = user.department.ifEmpty { "CSE" }
+            val userSem = user.semester.ifEmpty { "Semester 3" }
+            val userId = user.uid
+
+            notes.filter { note ->
+                val matchesTarget = note.uploadedBy == userId || isTargetMatched(userDept, userSem, note.broadcastTarget)
+                val matchesCategory = category == null || note.category.equals(category, ignoreCase = true)
+                val matchesQuery = query.isBlank() || 
+                                   note.title.contains(query, ignoreCase = true) ||
+                                   note.subject.contains(query, ignoreCase = true)
+
+                matchesTarget && matchesCategory && matchesQuery
+            }
         }
     }.stateIn(
         scope = viewModelScope,
@@ -51,76 +65,89 @@ class NotesViewModel @Inject constructor(
         _searchQuery.value = query
     }
 
-    fun toggleFavoritesFilter() {
-        _showOnlyFavorites.value = !_showOnlyFavorites.value
-    }
-
-    fun syncNotes() {
-        viewModelScope.launch {
-            _isRefreshing.value = true
-            notesUseCases.syncNotes()
-            _isRefreshing.value = false
-        }
-    }
-
-    fun toggleFavorite(noteId: String, isFavorite: Boolean) {
-        viewModelScope.launch {
-            notesUseCases.toggleFavorite(noteId, isFavorite)
-        }
+    fun selectCategory(category: String?) {
+        _selectedCategory.value = category
     }
 
     fun deleteNote(noteId: String) {
         viewModelScope.launch {
-            notesUseCases.deleteNote(noteId)
+            notesRepository.deleteNote(noteId)
         }
     }
 
     fun createNote(
         title: String,
-        content: String,
+        category: String,
         subject: String,
-        pdfStream: InputStream?,
-        pdfName: String?,
+        broadcastTarget: String,
+        fileStream: InputStream?,
+        fileName: String?,
         onSuccess: () -> Unit
     ) {
         viewModelScope.launch {
+            val user = currentUser.value
+            val authorName = user?.name ?: "Student"
             val note = Note(
                 title = title,
-                content = content,
-                subject = subject
-            )
-            notesUseCases.createNote(note, pdfStream, pdfName)
-                .onSuccess { onSuccess() }
-        }
-    }
-
-    fun updateNote(
-        noteId: String,
-        title: String,
-        content: String,
-        subject: String,
-        pdfUrl: String?,
-        pdfName: String?,
-        isFavorite: Boolean,
-        pdfStream: InputStream?,
-        onSuccess: () -> Unit
-    ) {
-        viewModelScope.launch {
-            val note = Note(
-                id = noteId,
-                title = title,
-                content = content,
+                category = category,
                 subject = subject,
-                isFavorite = isFavorite,
-                pdfUrl = pdfUrl,
-                pdfName = pdfName
+                broadcastTarget = broadcastTarget,
+                fileUrl = "",
+                fileName = fileName ?: "",
+                uploadedBy = user?.uid ?: "",
+                uploadedByName = authorName
             )
-            notesUseCases.updateNote(note, pdfStream, pdfName)
+            notesRepository.createNote(note, fileStream, fileName)
                 .onSuccess { onSuccess() }
         }
     }
 
     suspend fun getNoteById(id: String): Note? {
-        return notesUseCases.getNoteById(id)
+        return notesRepository.getNoteById(id)
+    }
+
+    private fun isTargetMatched(userDept: String, userSem: String, target: String): Boolean {
+        if (target.isBlank()) return true
+        val cleanedTarget = target.trim()
+        
+        val targetDept = when {
+            cleanedTarget.startsWith("Entire ", ignoreCase = true) && cleanedTarget.endsWith(" Department", ignoreCase = true) -> {
+                cleanedTarget.substring(7, cleanedTarget.length - 11).trim()
+            }
+            cleanedTarget.contains(" Year ", ignoreCase = true) -> {
+                val yearIdx = cleanedTarget.indexOf(" Year ", ignoreCase = true)
+                if (yearIdx != -1) cleanedTarget.substring(0, yearIdx).trim() else cleanedTarget
+            }
+            else -> cleanedTarget
+        }
+
+        if (!userDept.equals(targetDept, ignoreCase = true) && !cleanedTarget.contains(userDept, ignoreCase = true)) {
+            return false
+        }
+
+        val yearIndex = cleanedTarget.indexOf(" Year ", ignoreCase = true)
+        if (yearIndex != -1) {
+            val yearStr = cleanedTarget.substring(yearIndex + 6).trim()
+            val targetYear = yearStr.toIntOrNull() ?: return true
+            
+            val userYear = when {
+                userSem.contains("Year 1", ignoreCase = true) || userSem.contains("1st Year", ignoreCase = true) || userSem.contains("Semester 1", ignoreCase = true) || userSem.contains("Semester 2", ignoreCase = true) -> 1
+                userSem.contains("Year 2", ignoreCase = true) || userSem.contains("2nd Year", ignoreCase = true) || userSem.contains("Semester 3", ignoreCase = true) || userSem.contains("Semester 4", ignoreCase = true) -> 2
+                userSem.contains("Year 3", ignoreCase = true) || userSem.contains("3rd Year", ignoreCase = true) || userSem.contains("Semester 5", ignoreCase = true) || userSem.contains("Semester 6", ignoreCase = true) -> 3
+                userSem.contains("Year 4", ignoreCase = true) || userSem.contains("4th Year", ignoreCase = true) || userSem.contains("Semester 7", ignoreCase = true) || userSem.contains("Semester 8", ignoreCase = true) -> 4
+                else -> {
+                    val digit = userSem.firstOrNull { it.isDigit() }?.digitToIntOrNull()
+                    if (digit != null) {
+                        if (userSem.contains("sem", ignoreCase = true)) {
+                            (digit + 1) / 2
+                        } else {
+                            digit
+                        }
+                    } else 1
+                }
+            }
+            return userYear == targetYear
+        }
+        return true
     }
 }

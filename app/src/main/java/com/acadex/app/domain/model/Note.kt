@@ -3,11 +3,12 @@ package com.acadex.app.domain.model
 data class Note(
     val id: String = "",
     val title: String,
-    val content: String,
+    val category: String, // "Notes", "PDF", "Document", "Study Resource"
     val subject: String,
-    val isFavorite: Boolean = false,
-    val pdfUrl: String? = null,
-    val pdfName: String? = null,
-    val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val fileUrl: String,
+    val fileName: String,
+    val broadcastTarget: String,
+    val uploadedBy: String,
+    val uploadedByName: String,
+    val createdAt: Long = System.currentTimeMillis()
 )

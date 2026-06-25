@@ -6,10 +6,15 @@ import com.acadex.app.domain.model.Assignment
 import com.acadex.app.domain.model.AssignmentPriority
 import com.acadex.app.domain.model.AssignmentStatus
 import com.acadex.app.domain.repository.AssignmentRepository
+import com.acadex.app.utils.DateTimeUtils
 import com.acadex.app.utils.SessionManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flow
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.InputStream
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -22,41 +27,73 @@ class AssignmentRepositoryImpl @Inject constructor(
 
     companion object {
         private const val SUPABASE_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9tYnB6cmN0ZnNxbHBheGJ2amhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIyOTc1MzksImV4cCI6MjA5Nzg3MzUzOX0.jVFqmzTk-E-64PJrPgSZ3cpZDvHBk00vbRXtW1bTGSs"
+        private const val SUPABASE_BASE_URL = "https://ombpzrctfsqlpaxbvjha.supabase.co"
+    }
+
+    private val refreshTrigger = MutableStateFlow(System.currentTimeMillis())
+
+    private fun triggerRefresh() {
+        refreshTrigger.value = System.currentTimeMillis()
     }
 
     override fun getAssignmentsFlow(): Flow<List<Assignment>> = flow {
+        var lastFetchedTime = 0L
         while (true) {
-            val token = sessionManager.getAccessToken()
-            val userId = sessionManager.getUserId()
-            if (token != null && userId != null) {
-                runCatching {
-                    supabaseApiService.getAssignments(SUPABASE_API_KEY, "Bearer $token", "eq.$userId")
-                }.onSuccess { dtos ->
-                    emit(dtos.map { it.toDomain() })
-                }.onFailure {
+            val triggerTime = refreshTrigger.value
+            val currentTime = System.currentTimeMillis()
+            if (triggerTime > lastFetchedTime || currentTime - lastFetchedTime >= 30_000) {
+                lastFetchedTime = currentTime
+                val token = sessionManager.getAccessToken()
+                if (token != null) {
+                    runCatching {
+                        supabaseApiService.getAssignments(SUPABASE_API_KEY, "Bearer $token", null)
+                    }.onSuccess { dtos ->
+                        emit(dtos.map { it.toDomain() })
+                    }.onFailure {
+                        emit(emptyList())
+                    }
+                } else {
                     emit(emptyList())
                 }
-            } else {
-                emit(emptyList())
             }
-            delay(30_000) // poll every 30 seconds
+            delay(1000)
         }
     }
 
     override suspend fun getAssignmentById(id: String): Assignment? {
         val token = sessionManager.getAccessToken() ?: return null
-        val userId = sessionManager.getUserId() ?: return null
         return runCatching {
-            supabaseApiService.getAssignments(SUPABASE_API_KEY, "Bearer $token", "eq.$userId")
+            supabaseApiService.getAssignments(SUPABASE_API_KEY, "Bearer $token", null)
                 .firstOrNull { it.id == id }
                 ?.toDomain()
         }.getOrNull()
     }
 
-    override suspend fun createAssignment(assignment: Assignment): Result<Unit> = runCatching {
+    override suspend fun createAssignment(
+        assignment: Assignment,
+        attachmentStream: InputStream?,
+        attachmentName: String?
+    ): Result<Unit> = runCatching {
         val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
         val userId = sessionManager.getUserId() ?: throw Exception("User ID not found")
+        val authorName = sessionManager.getUserName() ?: "Student"
+        
         val id = assignment.id.ifEmpty { UUID.randomUUID().toString() }
+        var attachmentUrl = assignment.attachmentUrl
+
+        if (attachmentStream != null && attachmentName != null) {
+            val storagePath = "$userId/assignments/$id/$attachmentName"
+            val requestBody = attachmentStream.readBytes()
+                .toRequestBody("*/*".toMediaTypeOrNull())
+            val uploadResponse = supabaseApiService.uploadFile(
+                SUPABASE_API_KEY,
+                "Bearer $token",
+                "resources",
+                storagePath,
+                requestBody
+            )
+            attachmentUrl = "$SUPABASE_BASE_URL/storage/v1/object/public/${uploadResponse.key}"
+        }
 
         val dto = AssignmentDto(
             id = id,
@@ -66,37 +103,74 @@ class AssignmentRepositoryImpl @Inject constructor(
             description = assignment.description,
             dueDate = assignment.dueDate,
             priority = assignment.priority.name.lowercase(),
-            status = assignment.status.name.lowercase()
+            status = assignment.status.name.lowercase(),
+            broadcastTarget = assignment.broadcastTarget,
+            postedBy = authorName,
+            attachmentUrl = attachmentUrl,
+            assignedDate = assignment.assignedDate
         )
         supabaseApiService.createAssignment(SUPABASE_API_KEY, "Bearer $token", dto)
+        triggerRefresh()
     }
 
-    override suspend fun updateAssignment(assignment: Assignment): Result<Unit> = runCatching {
+    override suspend fun updateAssignment(
+        assignment: Assignment,
+        attachmentStream: InputStream?,
+        attachmentName: String?
+    ): Result<Unit> = runCatching {
         val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
+        val userId = sessionManager.getUserId() ?: throw Exception("User ID not found")
+        
+        var attachmentUrl = assignment.attachmentUrl
+
+        if (attachmentStream != null && attachmentName != null) {
+            val storagePath = "$userId/assignments/${assignment.id}/$attachmentName"
+            val requestBody = attachmentStream.readBytes()
+                .toRequestBody("*/*".toMediaTypeOrNull())
+            val uploadResponse = supabaseApiService.uploadFile(
+                SUPABASE_API_KEY,
+                "Bearer $token",
+                "resources",
+                storagePath,
+                requestBody
+            )
+            attachmentUrl = "$SUPABASE_BASE_URL/storage/v1/object/public/${uploadResponse.key}"
+        }
+
         val updates = mapOf<String, Any>(
             "title" to assignment.title,
             "description" to assignment.description,
             "subject" to assignment.subject,
             "due_date" to assignment.dueDate,
             "priority" to assignment.priority.name.lowercase(),
-            "status" to assignment.status.name.lowercase()
+            "status" to assignment.status.name.lowercase(),
+            "broadcast_target" to assignment.broadcastTarget,
+            "attachment_url" to (attachmentUrl ?: ""),
+            "assigned_date" to assignment.assignedDate
         )
         supabaseApiService.updateAssignment(SUPABASE_API_KEY, "Bearer $token", "eq.${assignment.id}", updates)
+        triggerRefresh()
     }
 
     override suspend fun deleteAssignment(id: String): Result<Unit> = runCatching {
         val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
         supabaseApiService.deleteAssignment(SUPABASE_API_KEY, "Bearer $token", "eq.$id")
+        triggerRefresh()
     }
 
     private fun AssignmentDto.toDomain() = Assignment(
         id = id ?: "",
+        userId = userId,
         title = title,
         description = description,
         subject = subject,
         dueDate = dueDate,
         priority = runCatching { AssignmentPriority.valueOf(priority.uppercase()) }.getOrDefault(AssignmentPriority.MEDIUM),
         status = runCatching { AssignmentStatus.valueOf(status.uppercase()) }.getOrDefault(AssignmentStatus.PENDING),
-        createdAt = 0L
+        broadcastTarget = broadcastTarget ?: "Entire CSE Department",
+        postedBy = postedBy ?: "Student",
+        attachmentUrl = attachmentUrl,
+        assignedDate = assignedDate ?: DateTimeUtils.parseIsoTimestamp(createdAt),
+        createdAt = DateTimeUtils.parseIsoTimestamp(createdAt)
     )
 }

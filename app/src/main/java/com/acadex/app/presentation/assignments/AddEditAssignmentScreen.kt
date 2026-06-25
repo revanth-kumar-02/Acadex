@@ -1,44 +1,33 @@
 package com.acadex.app.presentation.assignments
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.acadex.app.domain.model.Assignment
 import com.acadex.app.domain.model.AssignmentPriority
 import com.acadex.app.domain.model.AssignmentStatus
 import com.acadex.app.presentation.components.LoadingState
 import com.acadex.app.presentation.theme.Primary
+import com.acadex.app.presentation.theme.Secondary
+import java.io.InputStream
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,19 +36,45 @@ fun AddEditAssignmentScreen(
     viewModel: AssignmentsViewModel,
     onNavigateBack: () -> Unit
 ) {
+    val context = LocalContext.current
+    val currentUser by viewModel.currentUser.collectAsState()
+
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var subject by remember { mutableStateOf("") }
     var priority by remember { mutableStateOf(AssignmentPriority.MEDIUM) }
     var status by remember { mutableStateOf(AssignmentStatus.PENDING) }
-    var dueDate by remember { mutableStateOf(System.currentTimeMillis() + 86400000 * 3) } // Default 3 days from now
+    var dueDate by remember { mutableStateOf(System.currentTimeMillis() + 86400000 * 3) }
+    var broadcastTarget by remember { mutableStateOf("") }
+
+    var attachmentUri by remember { mutableStateOf<Uri?>(null) }
+    var attachmentName by remember { mutableStateOf<String?>(null) }
+    var existingAttachmentUrl by remember { mutableStateOf<String?>(null) }
 
     var isEditMode by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
+    var isSaving by remember { mutableStateOf(false) }
+    
     var priorityDropdownExpanded by remember { mutableStateOf(false) }
     var statusDropdownExpanded by remember { mutableStateOf(false) }
+    var broadcastDropdownExpanded by remember { mutableStateOf(false) }
 
-    LaunchedEffect(assignmentId) {
+    val userDept = currentUser?.department?.ifEmpty { "CSE" } ?: "CSE"
+    val broadcastOptions = remember(userDept) {
+        listOf(
+            "$userDept Year 1",
+            "$userDept Year 2",
+            "$userDept Year 3",
+            "$userDept Year 4",
+            "Entire $userDept Department"
+        )
+    }
+
+    LaunchedEffect(assignmentId, currentUser) {
+        if (broadcastTarget.isEmpty() && currentUser != null) {
+            broadcastTarget = "$userDept Year 2" // Default Year 2 target
+        }
+        
         if (assignmentId != null) {
             isEditMode = true
             val assignment = viewModel.getAssignmentById(assignmentId)
@@ -70,9 +85,23 @@ fun AddEditAssignmentScreen(
                 priority = it.priority
                 status = it.status
                 dueDate = it.dueDate
+                broadcastTarget = it.broadcastTarget
+                existingAttachmentUrl = it.attachmentUrl
+                if (it.attachmentUrl?.isNotEmpty() == true) {
+                    attachmentName = it.attachmentUrl.substringAfterLast("/")
+                }
             }
         }
         isLoading = false
+    }
+
+    val fileLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        attachmentUri = uri
+        uri?.let {
+            attachmentName = it.lastPathSegment ?: "document.pdf"
+        }
     }
 
     if (isLoading) {
@@ -108,137 +137,211 @@ fun AddEditAssignmentScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(
-                    onClick = {
-                        if (title.isBlank() || subject.isBlank()) return@IconButton
-                        val assignment = Assignment(
-                            id = assignmentId ?: "",
-                            title = title,
-                            description = description,
-                            subject = subject,
-                            dueDate = dueDate,
-                            priority = priority,
-                            status = status
-                        )
-                        if (isEditMode) {
-                            viewModel.updateAssignment(assignment, onSuccess = onNavigateBack)
-                        } else {
-                            viewModel.createAssignment(assignment, onSuccess = onNavigateBack)
+                
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    IconButton(
+                        onClick = {
+                            if (title.isBlank() || subject.isBlank() || broadcastTarget.isBlank()) return@IconButton
+                            isSaving = true
+
+                            val stream: InputStream? = attachmentUri?.let { uri ->
+                                context.contentResolver.openInputStream(uri)
+                            }
+
+                            val assignment = Assignment(
+                                id = assignmentId ?: "",
+                                title = title,
+                                description = description,
+                                subject = subject,
+                                dueDate = dueDate,
+                                priority = priority,
+                                status = status,
+                                broadcastTarget = broadcastTarget,
+                                postedBy = currentUser?.name ?: "Student",
+                                attachmentUrl = existingAttachmentUrl,
+                                assignedDate = System.currentTimeMillis()
+                            )
+
+                            if (isEditMode) {
+                                viewModel.updateAssignment(assignment, stream, attachmentName, onSuccess = {
+                                    isSaving = false
+                                    onNavigateBack()
+                                })
+                            } else {
+                                viewModel.createAssignment(assignment, stream, attachmentName, onSuccess = {
+                                    isSaving = false
+                                    onNavigateBack()
+                                })
+                            }
                         }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Save",
+                            tint = Primary
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Save",
-                        tint = Primary
-                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Fields
-            OutlinedTextField(
-                value = subject,
-                onValueChange = { subject = it },
-                label = { Text("Subject (e.g. Computer Networks)") },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                OutlinedTextField(
+                    value = subject,
+                    onValueChange = { subject = it },
+                    label = { Text("Subject (e.g. Data Structures)") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                label = { Text("Assignment Title") },
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Assignment Title") },
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            OutlinedTextField(
-                value = description,
-                onValueChange = { description = it },
-                label = { Text("Instructions / Details") },
-                minLines = 3,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text("Instructions / Submission Details") },
+                    minLines = 4,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-            Row(modifier = Modifier.fillMaxWidth()) {
-                // Priority Dropdown
+                // Broadcast Target Selector
                 ExposedDropdownMenuBox(
-                    expanded = priorityDropdownExpanded,
-                    onExpandedChange = { priorityDropdownExpanded = it },
-                    modifier = Modifier.weight(1f)
+                    expanded = broadcastDropdownExpanded,
+                    onExpandedChange = { broadcastDropdownExpanded = it },
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     OutlinedTextField(
-                        value = priority.name,
+                        value = broadcastTarget,
                         onValueChange = {},
                         readOnly = true,
-                        label = { Text("Priority") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = priorityDropdownExpanded) },
+                        label = { Text("Broadcast Target") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = broadcastDropdownExpanded) },
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
                         modifier = Modifier
                             .fillMaxWidth()
                             .menuAnchor()
                     )
                     ExposedDropdownMenu(
+                        expanded = broadcastDropdownExpanded,
+                        onDismissRequest = { broadcastDropdownExpanded = false }
+                    ) {
+                        broadcastOptions.forEach { opt ->
+                            DropdownMenuItem(
+                                text = { Text(opt) },
+                                onClick = {
+                                    broadcastTarget = opt
+                                    broadcastDropdownExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    ExposedDropdownMenuBox(
                         expanded = priorityDropdownExpanded,
-                        onDismissRequest = { priorityDropdownExpanded = false }
+                        onExpandedChange = { priorityDropdownExpanded = it },
+                        modifier = Modifier.weight(1f)
                     ) {
-                        AssignmentPriority.values().forEach { priorityVal ->
-                            DropdownMenuItem(
-                                text = { Text(priorityVal.name) },
-                                onClick = {
-                                    priority = priorityVal
-                                    priorityDropdownExpanded = false
-                                }
-                            )
+                        OutlinedTextField(
+                            value = priority.name,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Priority") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = priorityDropdownExpanded) },
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = priorityDropdownExpanded,
+                            onDismissRequest = { priorityDropdownExpanded = false }
+                        ) {
+                            AssignmentPriority.values().forEach { priorityVal ->
+                                DropdownMenuItem(
+                                    text = { Text(priorityVal.name) },
+                                    onClick = {
+                                        priority = priorityVal
+                                        priorityDropdownExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
-                }
 
-                Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                // Status Dropdown
-                ExposedDropdownMenuBox(
-                    expanded = statusDropdownExpanded,
-                    onExpandedChange = { statusDropdownExpanded = it },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    OutlinedTextField(
-                        value = status.name,
-                        onValueChange = {},
-                        readOnly = true,
-                        label = { Text("Status") },
-                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusDropdownExpanded) },
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .menuAnchor()
-                    )
-                    ExposedDropdownMenu(
+                    ExposedDropdownMenuBox(
                         expanded = statusDropdownExpanded,
-                        onDismissRequest = { statusDropdownExpanded = false }
+                        onExpandedChange = { statusDropdownExpanded = it },
+                        modifier = Modifier.weight(1f)
                     ) {
-                        AssignmentStatus.values().forEach { statusVal ->
-                            DropdownMenuItem(
-                                text = { Text(statusVal.name) },
-                                onClick = {
-                                    status = statusVal
-                                    statusDropdownExpanded = false
-                                }
-                            )
+                        OutlinedTextField(
+                            value = status.name,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Status") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusDropdownExpanded) },
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Primary),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .menuAnchor()
+                        )
+                        ExposedDropdownMenu(
+                            expanded = statusDropdownExpanded,
+                            onDismissRequest = { statusDropdownExpanded = false }
+                        ) {
+                            AssignmentStatus.values().forEach { statusVal ->
+                                DropdownMenuItem(
+                                    text = { Text(statusVal.name) },
+                                    onClick = {
+                                        status = statusVal
+                                        statusDropdownExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
                 }
+
+                // File Attachment picker section
+                Button(
+                    onClick = { fileLauncher.launch("*/*") },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Secondary.copy(alpha = 0.12f),
+                        contentColor = Secondary
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = if (attachmentName != null) "📎 $attachmentName" else "📎 Add Optional Attachment File",
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
             }
         }
     }

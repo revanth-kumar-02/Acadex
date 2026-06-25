@@ -23,9 +23,7 @@ sealed class Screen(val route: String) {
     object Profile : Screen("profile")
 
     // Detail / Action Routes
-    object NoteDetail : Screen("note_detail/{noteId}") {
-        fun createRoute(noteId: String) = "note_detail/$noteId"
-    }
+    object AddAnnouncement : Screen("add_announcement")
     object AddEditNote : Screen("add_edit_note?noteId={noteId}") {
         fun createRoute(noteId: String?) = if (noteId != null) "add_edit_note?noteId=$noteId" else "add_edit_note"
     }

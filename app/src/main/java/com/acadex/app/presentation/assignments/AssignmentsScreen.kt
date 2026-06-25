@@ -1,5 +1,7 @@
 package com.acadex.app.presentation.assignments
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,13 +11,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -29,7 +32,6 @@ import com.acadex.app.presentation.theme.Primary
 import com.acadex.app.presentation.theme.Secondary
 import com.acadex.app.presentation.theme.Success
 import com.acadex.app.utils.DateTimeUtils
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,16 +41,27 @@ fun AssignmentsScreen(
     onNavigateToAssignmentDetail: (String) -> Unit
 ) {
     val assignments by viewModel.assignmentsState.collectAsState()
+    val currentUser by viewModel.currentUser.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
-    var selectedStatusFilter by remember { mutableStateOf<AssignmentStatus?>(null) } // null means "All"
+    var selectedStatusFilter by remember { mutableStateOf<AssignmentStatus?>(null) }
 
-    // Filter assignments based on query and status filter
-    val filteredAssignments = remember(assignments, searchQuery, selectedStatusFilter) {
+    // Filter assignments dynamically by search query, status, and department target
+    val filteredAssignments = remember(assignments, searchQuery, selectedStatusFilter, currentUser) {
+        if (currentUser == null) return@remember emptyList<Assignment>()
+        val userDept = currentUser!!.department.ifEmpty { "CSE" }
+        val userSem = currentUser!!.semester.ifEmpty { "Semester 3" }
+        val userId = currentUser!!.uid
+
         assignments.filter { assignment ->
+            // Broadcast target filter
+            val isMatched = assignment.userId == userId || 
+                            isTargetMatched(userDept, userSem, assignment.broadcastTarget)
+
             val matchesQuery = assignment.title.contains(searchQuery, ignoreCase = true) ||
-                    assignment.subject.contains(searchQuery, ignoreCase = true)
+                               assignment.subject.contains(searchQuery, ignoreCase = true)
             val matchesStatus = selectedStatusFilter == null || assignment.status == selectedStatusFilter
-            matchesQuery && matchesStatus
+            
+            isMatched && matchesQuery && matchesStatus
         }
     }
 
@@ -79,7 +92,6 @@ fun AssignmentsScreen(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 
-                // Count Badge
                 Box(
                     modifier = Modifier
                         .background(Primary.copy(alpha = 0.12f), RoundedCornerShape(12.dp))
@@ -115,7 +127,6 @@ fun AssignmentsScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // All Chip
                 FilterChip(
                     selected = selectedStatusFilter == null,
                     onClick = { selectedStatusFilter = null },
@@ -125,7 +136,6 @@ fun AssignmentsScreen(
                         selectedLabelColor = Primary
                     )
                 )
-                // Pending Chip
                 FilterChip(
                     selected = selectedStatusFilter == AssignmentStatus.PENDING,
                     onClick = { selectedStatusFilter = AssignmentStatus.PENDING },
@@ -135,7 +145,6 @@ fun AssignmentsScreen(
                         selectedLabelColor = Primary
                     )
                 )
-                // In Progress Chip
                 FilterChip(
                     selected = selectedStatusFilter == AssignmentStatus.IN_PROGRESS,
                     onClick = { selectedStatusFilter = AssignmentStatus.IN_PROGRESS },
@@ -145,7 +154,6 @@ fun AssignmentsScreen(
                         selectedLabelColor = Primary
                     )
                 )
-                // Completed Chip
                 FilterChip(
                     selected = selectedStatusFilter == AssignmentStatus.COMPLETED,
                     onClick = { selectedStatusFilter = AssignmentStatus.COMPLETED },
@@ -165,7 +173,7 @@ fun AssignmentsScreen(
                     description = if (searchQuery.isNotEmpty() || selectedStatusFilter != null) {
                         "Try adjusting your filters or search query"
                     } else {
-                        "Add a new assignment to stay on top of your deadlines!"
+                        "Broadcast a new assignment to keep your department classmates updated!"
                     }
                 )
             } else {
@@ -177,6 +185,7 @@ fun AssignmentsScreen(
                     items(filteredAssignments, key = { it.id }) { assignment ->
                         AssignmentListItemCard(
                             assignment = assignment,
+                            currentUserId = currentUser?.uid ?: "",
                             onClick = { onNavigateToAssignmentDetail(assignment.id) },
                             onDeleteClick = { viewModel.deleteAssignment(assignment.id) },
                             onToggleStatusClick = {
@@ -210,11 +219,12 @@ fun AssignmentsScreen(
 @Composable
 private fun AssignmentListItemCard(
     assignment: Assignment,
+    currentUserId: String,
     onClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onToggleStatusClick: () -> Unit
 ) {
-    val dateStr = DateTimeUtils.formatDate(assignment.dueDate)
+    val context = LocalContext.current
     val priorityColor = when (assignment.priority) {
         AssignmentPriority.HIGH -> Color(0xFFEF4444)
         AssignmentPriority.MEDIUM -> Color(0xFFF59E0B)
@@ -255,17 +265,19 @@ private fun AssignmentListItemCard(
                     )
                 }
 
-                // Delete Button
-                IconButton(
-                    onClick = onDeleteClick,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Delete,
-                        contentDescription = "Delete",
-                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
-                        modifier = Modifier.size(20.dp)
-                    )
+                // Delete Button for owner
+                if (assignment.userId == currentUserId) {
+                    IconButton(
+                        onClick = onDeleteClick,
+                        modifier = Modifier.size(36.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Delete",
+                            tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
             }
 
@@ -280,10 +292,33 @@ private fun AssignmentListItemCard(
                 )
             }
 
+            if (assignment.attachmentUrl?.isNotEmpty() == true) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
+                        .clickable {
+                            runCatching {
+                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(assignment.attachmentUrl))
+                                context.startActivity(intent)
+                            }
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(text = "📎", fontSize = 12.sp, modifier = Modifier.padding(end = 6.dp))
+                    Text(
+                        text = assignment.attachmentUrl.substringAfterLast("/"),
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
+
             Spacer(modifier = Modifier.height(12.dp))
-
-            Divider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
-
+            HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
             Spacer(modifier = Modifier.height(12.dp))
 
             Row(
@@ -291,7 +326,6 @@ private fun AssignmentListItemCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Due Date & Priority Tag
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(
                         modifier = Modifier
@@ -306,13 +340,12 @@ private fun AssignmentListItemCard(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Due: $dateStr",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                        text = DateTimeUtils.formatDeadline(assignment.dueDate),
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = Primary
                     )
                 }
 
-                // Status Switcher Chip
                 Box(
                     modifier = Modifier
                         .background(statusColor.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
@@ -332,4 +365,49 @@ private fun AssignmentListItemCard(
             }
         }
     }
+}
+
+private fun isTargetMatched(userDept: String, userSem: String, target: String): Boolean {
+    if (target.isBlank()) return true
+    val cleanedTarget = target.trim()
+    
+    val targetDept = when {
+        cleanedTarget.startsWith("Entire ", ignoreCase = true) && cleanedTarget.endsWith(" Department", ignoreCase = true) -> {
+            cleanedTarget.substring(7, cleanedTarget.length - 11).trim()
+        }
+        cleanedTarget.contains(" Year ", ignoreCase = true) -> {
+            val yearIdx = cleanedTarget.indexOf(" Year ", ignoreCase = true)
+            if (yearIdx != -1) cleanedTarget.substring(0, yearIdx).trim() else cleanedTarget
+        }
+        else -> cleanedTarget
+    }
+
+    if (!userDept.equals(targetDept, ignoreCase = true) && !cleanedTarget.contains(userDept, ignoreCase = true)) {
+        return false
+    }
+
+    val yearIndex = cleanedTarget.indexOf(" Year ", ignoreCase = true)
+    if (yearIndex != -1) {
+        val yearStr = cleanedTarget.substring(yearIndex + 6).trim()
+        val targetYear = yearStr.toIntOrNull() ?: return true
+        
+        val userYear = when {
+            userSem.contains("Year 1", ignoreCase = true) || userSem.contains("1st Year", ignoreCase = true) || userSem.contains("Semester 1", ignoreCase = true) || userSem.contains("Semester 2", ignoreCase = true) -> 1
+            userSem.contains("Year 2", ignoreCase = true) || userSem.contains("2nd Year", ignoreCase = true) || userSem.contains("Semester 3", ignoreCase = true) || userSem.contains("Semester 4", ignoreCase = true) -> 2
+            userSem.contains("Year 3", ignoreCase = true) || userSem.contains("3rd Year", ignoreCase = true) || userSem.contains("Semester 5", ignoreCase = true) || userSem.contains("Semester 6", ignoreCase = true) -> 3
+            userSem.contains("Year 4", ignoreCase = true) || userSem.contains("4th Year", ignoreCase = true) || userSem.contains("Semester 7", ignoreCase = true) || userSem.contains("Semester 8", ignoreCase = true) -> 4
+            else -> {
+                val digit = userSem.firstOrNull { it.isDigit() }?.digitToIntOrNull()
+                if (digit != null) {
+                    if (userSem.contains("sem", ignoreCase = true)) {
+                        (digit + 1) / 2
+                    } else {
+                        digit
+                    }
+                } else 1
+            }
+        }
+        return userYear == targetYear
+    }
+    return true
 }
