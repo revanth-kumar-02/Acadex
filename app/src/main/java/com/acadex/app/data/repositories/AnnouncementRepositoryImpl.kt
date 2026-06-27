@@ -80,6 +80,7 @@ class AnnouncementRepositoryImpl @Inject constructor(
             broadcastTarget = announcement.broadcastTarget,
             createdBy = userId
         ).onFailure { Log.w("AnnouncementRepository", "Failed to create broadcast notification", it) }
+        Unit
     }.onFailure { exception ->
         Log.e("AnnouncementRepository", "Failed to create announcement", exception)
     }

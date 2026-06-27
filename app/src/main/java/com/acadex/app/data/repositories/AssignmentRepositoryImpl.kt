@@ -123,6 +123,7 @@ class AssignmentRepositoryImpl @Inject constructor(
             broadcastTarget = target,
             createdBy = userId
         ).onFailure { Log.w("AssignmentRepository", "Failed to create broadcast notification", it) }
+        Unit
     }.onFailure { exception ->
         Log.e("AssignmentRepository", "Failed to create assignment", exception)
     }

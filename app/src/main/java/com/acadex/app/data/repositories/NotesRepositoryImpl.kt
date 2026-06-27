@@ -119,6 +119,7 @@ class NotesRepositoryImpl @Inject constructor(
             broadcastTarget = target,
             createdBy = userId
         ).onFailure { Log.w("NotesRepository", "Failed to create broadcast notification", it) }
+        Unit
     }.onFailure { exception ->
         Log.e("NotesRepository", "Failed to create shared note", exception)
     }
