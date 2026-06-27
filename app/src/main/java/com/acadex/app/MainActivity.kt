@@ -27,6 +27,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        val isDebuggable = (applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
+        if (isDebuggable) {
+            window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+            Log.d("MainActivity", "Running in DEBUG mode. Screenshot protection disabled.")
+        } else {
+            Log.d("MainActivity", "Running in RELEASE mode.")
+        }
+        
         Log.d("MainActivity", "onCreate called, checking intent for deep links")
         intent?.data?.let { handleDeepLink(it) }
 

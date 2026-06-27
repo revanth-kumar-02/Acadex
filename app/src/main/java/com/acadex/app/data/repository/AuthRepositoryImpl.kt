@@ -95,16 +95,39 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun login(email: String, password: String): Result<User> = withContext(Dispatchers.IO) {
-        runCatching {
-            Log.d("AuthRepository", "Starting login request for email: $email")
-            val authResponse = try {
-                supabaseApiService.signIn(SUPABASE_API_KEY, SignInRequest(email, password))
+    private fun parseSupabaseError(throwable: Throwable): String {
+        if (throwable is retrofit2.HttpException) {
+            try {
+                val errorBody = throwable.response()?.errorBody()?.string()
+                if (!errorBody.isNullOrEmpty()) {
+                    val json = com.google.gson.Gson().fromJson(errorBody, com.google.gson.JsonObject::class.java)
+                    if (json.has("error_description")) {
+                        return json.get("error_description").asString
+                    } else if (json.has("msg")) {
+                        return json.get("msg").asString
+                    } else if (json.has("message")) {
+                        return json.get("message").asString
+                    } else if (json.has("error")) {
+                        return json.get("error").asString
+                    }
+                }
             } catch (e: Exception) {
-                Log.e("AuthRepository", "Supabase signIn API request failed", e)
-                throw e
+                Log.e("AuthRepository", "Failed to parse Supabase error body", e)
             }
-            
+            return when (throwable.code()) {
+                400 -> "Invalid credentials or request parameters"
+                401 -> "Unauthorized session"
+                404 -> "User or resource not found"
+                else -> "HTTP ${throwable.code()}: ${throwable.message()}"
+            }
+        }
+        return throwable.localizedMessage ?: "Unknown error occurred"
+    }
+
+    override suspend fun login(email: String, password: String): Result<User> = withContext(Dispatchers.IO) {
+        try {
+            Log.d("AuthRepository", "Starting login request for email: $email")
+            val authResponse = supabaseApiService.signIn(SUPABASE_API_KEY, SignInRequest(email, password))
             val token = authResponse.accessToken ?: throw Exception("Auth failed: Access token is null")
             val authUser = authResponse.user
             Log.d("AuthRepository", "Login response received: user ID = ${authUser.id}")
@@ -148,9 +171,11 @@ class AuthRepositoryImpl @Inject constructor(
             
             Log.d("AuthRepository", "Setting _currentUser on login success")
             _currentUser.value = user
-            user
-        }.onFailure { error ->
-            Log.e("AuthRepository", "Login failed with exception", error)
+            Result.success(user)
+        } catch (e: Exception) {
+            val cleanMessage = parseSupabaseError(e)
+            Log.e("AuthRepository", "Login failed: $cleanMessage", e)
+            Result.failure(Exception(cleanMessage, e))
         }
     }
 
@@ -162,7 +187,7 @@ class AuthRepositoryImpl @Inject constructor(
         department: String,
         semester: String
     ): Result<User> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             Log.d("AuthRepository", "Starting registration for email: $email")
             withTimeout(15000) {
                 val userMetadata = mapOf(
@@ -173,16 +198,11 @@ class AuthRepositoryImpl @Inject constructor(
                 )
                 
                 Log.d("AuthRepository", "Sending sign up request to Supabase with redirect_to=acadex://auth/callback")
-                val signUpResponse = try {
-                    supabaseApiService.signUp(
-                        apiKey = SUPABASE_API_KEY,
-                        redirectTo = "acadex://auth/callback",
-                        body = SignUpRequest(email, password, userMetadata)
-                    )
-                } catch (e: Exception) {
-                    Log.e("AuthRepository", "Supabase signUp API request failed", e)
-                    throw e
-                }
+                val signUpResponse = supabaseApiService.signUp(
+                    apiKey = SUPABASE_API_KEY,
+                    redirectTo = "acadex://auth/callback",
+                    body = SignUpRequest(email, password, userMetadata)
+                )
                 
                 Log.d("AuthRepository", "Supabase sign up response received: user ID = ${signUpResponse.user?.id}")
                 val authUser = signUpResponse.user ?: throw Exception("Registration failed: User details not returned from Supabase")
@@ -216,10 +236,12 @@ class AuthRepositoryImpl @Inject constructor(
                 
                 Log.d("AuthRepository", "Profile created in memory, setting _currentUser")
                 _currentUser.value = user
-                user
+                Result.success(user)
             }
-        }.onFailure { error ->
-            Log.e("AuthRepository", "Registration failed with exception", error)
+        } catch (e: Exception) {
+            val cleanMessage = parseSupabaseError(e)
+            Log.e("AuthRepository", "Registration failed: $cleanMessage", e)
+            Result.failure(Exception(cleanMessage, e))
         }
     }
 
@@ -230,7 +252,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun resetPassword(email: String): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             Log.d("AuthRepository", "Requesting password reset for email: $email with redirect_to=acadex://auth/callback")
             supabaseApiService.recoverPassword(
                 apiKey = SUPABASE_API_KEY,
@@ -238,9 +260,11 @@ class AuthRepositoryImpl @Inject constructor(
                 body = RecoverRequest(email)
             )
             Log.i("AuthRepository", "Password recovery request sent successfully")
-            Unit
-        }.onFailure { error ->
-            Log.e("AuthRepository", "Password reset request failed with exception", error)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            val cleanMessage = parseSupabaseError(e)
+            Log.e("AuthRepository", "Password reset request failed: $cleanMessage", e)
+            Result.failure(Exception(cleanMessage, e))
         }
     }
 
@@ -251,7 +275,7 @@ class AuthRepositoryImpl @Inject constructor(
         semester: String,
         profilePicUrl: String
     ): Result<User> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             Log.d("AuthRepository", "Updating user profile...")
             val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
             val userId = sessionManager.getUserId() ?: throw Exception("User ID not found")
@@ -280,9 +304,11 @@ class AuthRepositoryImpl @Inject constructor(
             
             Log.d("AuthRepository", "Setting updated profile as _currentUser")
             _currentUser.value = updatedUser
-            updatedUser
-        }.onFailure { error ->
-            Log.e("AuthRepository", "Profile update failed with exception", error)
+            Result.success(updatedUser)
+        } catch (e: Exception) {
+            val cleanMessage = parseSupabaseError(e)
+            Log.e("AuthRepository", "Profile update failed: $cleanMessage", e)
+            Result.failure(Exception(cleanMessage, e))
         }
     }
 
