@@ -20,7 +20,8 @@ import javax.inject.Singleton
 @Singleton
 class NotesRepositoryImpl @Inject constructor(
     private val supabaseApiService: SupabaseApiService,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val notificationRepository: NotificationRepository
 ) : NotesRepository {
 
     companion object {
@@ -108,6 +109,16 @@ class NotesRepositoryImpl @Inject constructor(
         )
         supabaseApiService.createNote(SUPABASE_API_KEY, "Bearer $token", dto)
         triggerRefresh()
+
+        // Fire broadcast notification
+        val target = note.broadcastTarget.ifBlank { "All" }
+        notificationRepository.createNotificationsForBroadcast(
+            title = "📚 Notes Uploaded: ${note.title}",
+            message = "${note.subject} - ${note.category}",
+            type = "notes",
+            broadcastTarget = target,
+            createdBy = userId
+        ).onFailure { Log.w("NotesRepository", "Failed to create broadcast notification", it) }
     }.onFailure { exception ->
         Log.e("NotesRepository", "Failed to create shared note", exception)
     }

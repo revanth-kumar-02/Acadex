@@ -20,7 +20,8 @@ import javax.inject.Singleton
 @Singleton
 class AssignmentRepositoryImpl @Inject constructor(
     private val supabaseApiService: SupabaseApiService,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val notificationRepository: NotificationRepository
 ) : AssignmentRepository {
 
     companion object {
@@ -112,6 +113,16 @@ class AssignmentRepositoryImpl @Inject constructor(
         )
         supabaseApiService.createAssignment(SUPABASE_API_KEY, "Bearer $token", dto)
         triggerRefresh()
+
+        // Fire notification for broadcast target
+        val target = assignment.broadcastTarget.ifBlank { "All" }
+        notificationRepository.createNotificationsForBroadcast(
+            title = "📋 New Assignment: ${assignment.title}",
+            message = "${assignment.subject} - Due ${java.text.SimpleDateFormat("MMM d", java.util.Locale.getDefault()).format(java.util.Date(assignment.dueDate))}",
+            type = "assignment",
+            broadcastTarget = target,
+            createdBy = userId
+        ).onFailure { Log.w("AssignmentRepository", "Failed to create broadcast notification", it) }
     }.onFailure { exception ->
         Log.e("AssignmentRepository", "Failed to create assignment", exception)
     }

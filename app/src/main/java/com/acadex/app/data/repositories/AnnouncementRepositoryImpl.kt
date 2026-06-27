@@ -17,7 +17,8 @@ import javax.inject.Singleton
 @Singleton
 class AnnouncementRepositoryImpl @Inject constructor(
     private val supabaseApiService: SupabaseApiService,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val notificationRepository: NotificationRepository
 ) : AnnouncementRepository {
 
     companion object {
@@ -70,6 +71,15 @@ class AnnouncementRepositoryImpl @Inject constructor(
         )
         supabaseApiService.createAnnouncement(SUPABASE_API_KEY, "Bearer $token", dto)
         triggerRefresh()
+
+        // Fire broadcast notification
+        notificationRepository.createNotificationsForBroadcast(
+            title = "📢 ${announcement.title}",
+            message = announcement.content.take(120),
+            type = "announcement",
+            broadcastTarget = announcement.broadcastTarget,
+            createdBy = userId
+        ).onFailure { Log.w("AnnouncementRepository", "Failed to create broadcast notification", it) }
     }.onFailure { exception ->
         Log.e("AnnouncementRepository", "Failed to create announcement", exception)
     }

@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -20,6 +21,7 @@ sealed class Screen(val route: String) {
     object Notes : Screen("notes")
     object Assignments : Screen("assignments")
     object Planner : Screen("planner")
+    object Notifications : Screen("notifications")
     object Profile : Screen("profile")
 
     // Detail / Action Routes
@@ -57,5 +59,6 @@ val bottomNavItems = listOf(
     BottomNavItem("Notes", Screen.Notes.route, Icons.AutoMirrored.Filled.List),
     BottomNavItem("Assignments", Screen.Assignments.route, Icons.Default.Check),
     BottomNavItem("Planner", Screen.Planner.route, Icons.Default.DateRange),
+    BottomNavItem("Alerts", Screen.Notifications.route, Icons.Default.Notifications),
     BottomNavItem("Profile", Screen.Profile.route, Icons.Default.Person)
 )

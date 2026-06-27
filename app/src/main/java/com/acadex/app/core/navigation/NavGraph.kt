@@ -2,6 +2,8 @@ package com.acadex.app.core.navigation
 
 import android.util.Log
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -10,6 +12,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -27,6 +30,8 @@ import com.acadex.app.features.notes.*
 import com.acadex.app.features.assignments.*
 import com.acadex.app.features.planner.*
 import com.acadex.app.features.profile.*
+import com.acadex.app.features.notifications.NotificationsScreen
+import com.acadex.app.features.notifications.NotificationsViewModel
 import com.acadex.app.ui.theme.Primary
 
 @Composable
@@ -42,10 +47,15 @@ fun NavGraph() {
         Screen.Notes.route,
         Screen.Assignments.route,
         Screen.Planner.route,
+        Screen.Notifications.route,
         Screen.Profile.route
     )
 
     val startDestination = Screen.Splash.route
+
+    // Shared NotificationsViewModel to observe unread count
+    val notificationsViewModel: NotificationsViewModel = hiltViewModel()
+    val unreadCount by notificationsViewModel.unreadCount.collectAsState()
 
     Scaffold(
         bottomBar = {
@@ -56,6 +66,7 @@ fun NavGraph() {
                 ) {
                     bottomNavItems.forEach { item ->
                         val isSelected = currentRoute == item.route
+                        val showBadge = item.route == Screen.Notifications.route && unreadCount > 0
                         NavigationBarItem(
                             selected = isSelected,
                             onClick = {
@@ -68,16 +79,20 @@ fun NavGraph() {
                                 }
                             },
                             icon = {
-                                Icon(
-                                    imageVector = item.icon,
-                                    contentDescription = item.title
-                                )
+                                if (showBadge) {
+                                    BadgedBox(badge = {
+                                        Badge {
+                                            Text(if (unreadCount > 99) "99+" else "$unreadCount")
+                                        }
+                                    }) {
+                                        Icon(imageVector = item.icon, contentDescription = item.title)
+                                    }
+                                } else {
+                                    Icon(imageVector = item.icon, contentDescription = item.title)
+                                }
                             },
                             label = {
-                                Text(
-                                    text = item.title,
-                                    style = MaterialTheme.typography.labelSmall
-                                )
+                                Text(text = item.title, style = MaterialTheme.typography.labelSmall)
                             },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = Primary,
@@ -187,6 +202,10 @@ fun NavGraph() {
             composable(Screen.Profile.route) {
                 val profileViewModel: ProfileViewModel = hiltViewModel()
                 ProfileScreen(viewModel = profileViewModel)
+            }
+
+            composable(Screen.Notifications.route) {
+                NotificationsScreen(viewModel = notificationsViewModel)
             }
 
             // Detail / Action Screens

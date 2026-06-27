@@ -84,6 +84,10 @@ dependencies {
     // Coil Image Loading
     implementation(libs.coil.compose)
 
+    // WorkManager
+    implementation(libs.work.runtime.ktx)
+    implementation(libs.hilt.work)
+    kapt(libs.hilt.work.compiler)
 
 
     // Local Unit Testing

@@ -111,3 +111,25 @@ data class AnnouncementDto(
 data class StorageUploadResponse(
     @SerializedName("Key") val key: String
 )
+
+// --- Notification DTOs ---
+
+data class NotificationDto(
+    @SerializedName("id") val id: String? = null,
+    @SerializedName("user_id") val userId: String,
+    @SerializedName("title") val title: String,
+    @SerializedName("message") val message: String,
+    @SerializedName("type") val type: String,
+    @SerializedName("broadcast_target") val broadcastTarget: String? = null,
+    @SerializedName("created_by") val createdBy: String? = null,
+    @SerializedName("created_at") val createdAt: String? = null,
+    @SerializedName("is_read") val isRead: Boolean = false
+)
+
+data class NotificationPreferencesDto(
+    @SerializedName("user_id") val userId: String,
+    @SerializedName("assignments_enabled") val assignmentsEnabled: Boolean = true,
+    @SerializedName("notes_enabled") val notesEnabled: Boolean = true,
+    @SerializedName("announcements_enabled") val announcementsEnabled: Boolean = true,
+    @SerializedName("reminders_enabled") val remindersEnabled: Boolean = true
+)

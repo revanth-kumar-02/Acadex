@@ -176,4 +176,69 @@ interface SupabaseApiService {
         @Path("bucket") bucket: String,
         @Path("path") path: String
     ): Unit
+
+    // --- Notifications (public.notifications) ---
+
+    @GET("rest/v1/notifications")
+    suspend fun getNotifications(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") authHeader: String,
+        @Query("user_id") userIdFilter: String,
+        @Query("order") order: String = "created_at.desc"
+    ): List<NotificationDto>
+
+    @POST("rest/v1/notifications")
+    suspend fun createNotifications(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") authHeader: String,
+        @Header("Prefer") prefer: String = "return=minimal",
+        @Body body: List<NotificationDto>
+    ): Unit
+
+    @PATCH("rest/v1/notifications")
+    suspend fun markNotificationRead(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") authHeader: String,
+        @Query("id") idFilter: String,
+        @Body body: Map<String, Boolean>
+    ): List<NotificationDto>
+
+    @PATCH("rest/v1/notifications")
+    suspend fun markAllNotificationsRead(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") authHeader: String,
+        @Query("user_id") userIdFilter: String,
+        @Body body: Map<String, Boolean>
+    ): List<NotificationDto>
+
+    @DELETE("rest/v1/notifications")
+    suspend fun deleteNotification(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") authHeader: String,
+        @Query("id") idFilter: String
+    )
+
+    // --- Notification Preferences (public.notification_preferences) ---
+
+    @GET("rest/v1/notification_preferences")
+    suspend fun getNotificationPreferences(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") authHeader: String,
+        @Query("user_id") userIdFilter: String
+    ): List<NotificationPreferencesDto>
+
+    @POST("rest/v1/notification_preferences")
+    suspend fun upsertNotificationPreferences(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") authHeader: String,
+        @Header("Prefer") prefer: String = "resolution=merge-duplicates",
+        @Body body: NotificationPreferencesDto
+    ): List<NotificationPreferencesDto>
+
+    @GET("rest/v1/users")
+    suspend fun getAllUsers(
+        @Header("apikey") apiKey: String,
+        @Header("Authorization") authHeader: String,
+        @Query("select") select: String = "id,department,semester"
+    ): List<UserProfileDto>
 }
