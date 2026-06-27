@@ -11,9 +11,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
-import com.acadex.app.domain.repository.AuthRepository
-import com.acadex.app.presentation.navigation.NavGraph
-import com.acadex.app.presentation.theme.AcadexTheme
+import com.acadex.app.data.repositories.AuthRepository
+import com.acadex.app.core.navigation.NavGraph
+import com.acadex.app.ui.theme.AcadexTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import javax.inject.Inject
