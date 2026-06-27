@@ -60,15 +60,19 @@ class PlannerViewModel @Inject constructor(
         }
     }
 
-    fun createTask(task: PlannerTask, onSuccess: () -> Unit) {
+    fun createTask(task: PlannerTask, onSuccess: () -> Unit, onFailure: (String) -> Unit = {}) {
         viewModelScope.launch {
-            plannerUseCases.createTask(task).onSuccess { onSuccess() }
+            plannerUseCases.createTask(task)
+                .onSuccess { onSuccess() }
+                .onFailure { error -> onFailure(error.message ?: "Failed to create task") }
         }
     }
 
-    fun updateTask(task: PlannerTask, onSuccess: () -> Unit) {
+    fun updateTask(task: PlannerTask, onSuccess: () -> Unit, onFailure: (String) -> Unit = {}) {
         viewModelScope.launch {
-            plannerUseCases.updateTask(task).onSuccess { onSuccess() }
+            plannerUseCases.updateTask(task)
+                .onSuccess { onSuccess() }
+                .onFailure { error -> onFailure(error.message ?: "Failed to update task") }
         }
     }
 

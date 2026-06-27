@@ -1,5 +1,6 @@
 package com.acadex.app.data.repository
 
+import android.util.Log
 import com.acadex.app.data.remote.AnnouncementDto
 import com.acadex.app.data.remote.SupabaseApiService
 import com.acadex.app.domain.model.Announcement
@@ -43,7 +44,8 @@ class AnnouncementRepositoryImpl @Inject constructor(
                         supabaseApiService.getAnnouncements(SUPABASE_API_KEY, "Bearer $token")
                     }.onSuccess { dtos ->
                         emit(dtos.map { it.toDomain() })
-                    }.onFailure {
+                    }.onFailure { exception ->
+                        Log.e("AnnouncementRepository", "Failed to fetch announcements list flow", exception)
                         emit(emptyList())
                     }
                 } else {
@@ -69,6 +71,8 @@ class AnnouncementRepositoryImpl @Inject constructor(
         )
         supabaseApiService.createAnnouncement(SUPABASE_API_KEY, "Bearer $token", dto)
         triggerRefresh()
+    }.onFailure { exception ->
+        Log.e("AnnouncementRepository", "Failed to create announcement", exception)
     }
 
     private fun AnnouncementDto.toDomain() = Announcement(

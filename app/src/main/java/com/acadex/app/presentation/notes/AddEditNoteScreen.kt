@@ -147,6 +147,10 @@ fun AddEditNoteScreen(
                                 onSuccess = {
                                     isSaving = false
                                     onNavigateBack()
+                                },
+                                onFailure = { error ->
+                                    isSaving = false
+                                    android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
                                 }
                             )
                         }

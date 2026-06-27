@@ -18,6 +18,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -36,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.acadex.app.domain.model.PlannerTask
@@ -43,6 +45,7 @@ import com.acadex.app.domain.model.TaskType
 import com.acadex.app.presentation.components.LoadingState
 import com.acadex.app.presentation.theme.Primary
 import com.acadex.app.presentation.theme.Secondary
+import androidx.compose.foundation.layout.size
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,6 +55,7 @@ fun AddEditTaskScreen(
     viewModel: PlannerViewModel,
     onNavigateBack: () -> Unit
 ) {
+    val context = LocalContext.current
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var startTime by remember { mutableStateOf("") }
@@ -60,6 +64,7 @@ fun AddEditTaskScreen(
 
     var isEditMode by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(true) }
+    var isSaving by remember { mutableStateOf(false) }
     var dropdownExpanded by remember { mutableStateOf(false) }
 
     LaunchedEffect(taskId) {
@@ -110,31 +115,56 @@ fun AddEditTaskScreen(
                     color = MaterialTheme.colorScheme.onBackground,
                     modifier = Modifier.weight(1f)
                 )
-                IconButton(
-                    onClick = {
-                        if (title.isBlank()) return@IconButton
-                        val task = PlannerTask(
-                            id = taskId ?: "",
-                            title = title,
-                            description = description,
-                            dueDate = date,
-                            startTime = startTime,
-                            endTime = endTime,
-                            type = type,
-                            completed = false
-                        )
-                        if (isEditMode) {
-                            viewModel.updateTask(task, onSuccess = onNavigateBack)
-                        } else {
-                            viewModel.createTask(task, onSuccess = onNavigateBack)
+                if (isSaving) {
+                    CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                } else {
+                    IconButton(
+                        onClick = {
+                            if (title.isBlank()) return@IconButton
+                            isSaving = true
+                            val task = PlannerTask(
+                                id = taskId ?: "",
+                                title = title,
+                                description = description,
+                                dueDate = date,
+                                startTime = startTime,
+                                endTime = endTime,
+                                type = type,
+                                completed = false
+                            )
+                            if (isEditMode) {
+                                viewModel.updateTask(
+                                    task = task,
+                                    onSuccess = {
+                                        isSaving = false
+                                        onNavigateBack()
+                                    },
+                                    onFailure = { error ->
+                                        isSaving = false
+                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                )
+                            } else {
+                                viewModel.createTask(
+                                    task = task,
+                                    onSuccess = {
+                                        isSaving = false
+                                        onNavigateBack()
+                                    },
+                                    onFailure = { error ->
+                                        isSaving = false
+                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                )
+                            }
                         }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Save",
+                            tint = Primary
+                        )
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Save",
-                        tint = Primary
-                    )
                 }
             }
 

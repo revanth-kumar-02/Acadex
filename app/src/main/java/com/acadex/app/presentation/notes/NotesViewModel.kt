@@ -82,7 +82,8 @@ class NotesViewModel @Inject constructor(
         broadcastTarget: String,
         fileStream: InputStream?,
         fileName: String?,
-        onSuccess: () -> Unit
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
             val user = currentUser.value
@@ -99,6 +100,7 @@ class NotesViewModel @Inject constructor(
             )
             notesRepository.createNote(note, fileStream, fileName)
                 .onSuccess { onSuccess() }
+                .onFailure { error -> onFailure(error.message ?: "Failed to upload note") }
         }
     }
 

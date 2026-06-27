@@ -42,12 +42,12 @@ class AuthRepositoryImpl @Inject constructor(
             CoroutineScope(Dispatchers.IO).launch {
                 try {
                     // Verify saved session by fetching current user from Auth service
-                    val authUser = withTimeoutOrNull(4000) {
+                    val authUser = withTimeoutOrNull(6000) {
                         supabaseApiService.getCurrentUser(SUPABASE_API_KEY, "Bearer $savedToken")
                     }
                     if (authUser != null) {
                         // Fetch details from the public.users database table
-                        val profileList = withTimeoutOrNull(3000) {
+                        val profileList = withTimeoutOrNull(4000) {
                             supabaseApiService.getUserProfile(SUPABASE_API_KEY, "Bearer $savedToken", "eq.${authUser.id}")
                         }
                         val profile = profileList?.firstOrNull()
@@ -62,22 +62,29 @@ class AuthRepositoryImpl @Inject constructor(
                         )
                         _currentUser.value = user
                     } else {
-                        // Token invalid/expired
-                        sessionManager.clearSession()
-                        _currentUser.value = null
+                        // Token invalid/expired or timeout occurred
+                        throw java.util.concurrent.TimeoutException("Session check timed out or returned null")
                     }
                 } catch (e: Exception) {
-                    // Fallback to local SharedPreferences credentials if network fails to avoid blocking the user
-                    val fallbackUser = User(
-                        uid = savedUserId,
-                        name = sessionManager.getUserName() ?: "",
-                        email = sessionManager.getUserEmail() ?: "",
-                        registerNumber = "",
-                        department = "",
-                        semester = "",
-                        profilePicUrl = ""
-                    )
-                    _currentUser.value = fallbackUser
+                    Log.e("AuthRepository", "Session verification failed during initialization", e)
+                    // If it is a credential error (HttpException 400 or 401), clear the session and log out
+                    if (e is retrofit2.HttpException && (e.code() == 400 || e.code() == 401)) {
+                        Log.w("AuthRepository", "Invalid session credentials, clearing session")
+                        sessionManager.clearSession()
+                        _currentUser.value = null
+                    } else {
+                        // Fallback to local SharedPreferences credentials if network fails to avoid blocking the user
+                        val fallbackUser = User(
+                            uid = savedUserId,
+                            name = sessionManager.getUserName() ?: "",
+                            email = sessionManager.getUserEmail() ?: "",
+                            registerNumber = "",
+                            department = "",
+                            semester = "",
+                            profilePicUrl = ""
+                        )
+                        _currentUser.value = fallbackUser
+                    }
                 } finally {
                     _isInitialized.value = true
                 }

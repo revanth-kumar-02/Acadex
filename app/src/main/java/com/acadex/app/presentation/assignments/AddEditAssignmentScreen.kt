@@ -165,15 +165,33 @@ fun AddEditAssignmentScreen(
                             )
 
                             if (isEditMode) {
-                                viewModel.updateAssignment(assignment, stream, attachmentName, onSuccess = {
-                                    isSaving = false
-                                    onNavigateBack()
-                                })
+                                viewModel.updateAssignment(
+                                    assignment = assignment,
+                                    attachmentStream = stream,
+                                    attachmentName = attachmentName,
+                                    onSuccess = {
+                                        isSaving = false
+                                        onNavigateBack()
+                                    },
+                                    onFailure = { error ->
+                                        isSaving = false
+                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                )
                             } else {
-                                viewModel.createAssignment(assignment, stream, attachmentName, onSuccess = {
-                                    isSaving = false
-                                    onNavigateBack()
-                                })
+                                viewModel.createAssignment(
+                                    assignment = assignment,
+                                    attachmentStream = stream,
+                                    attachmentName = attachmentName,
+                                    onSuccess = {
+                                        isSaving = false
+                                        onNavigateBack()
+                                    },
+                                    onFailure = { error ->
+                                        isSaving = false
+                                        android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
+                                    }
+                                )
                             }
                         }
                     ) {

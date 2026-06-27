@@ -1,5 +1,6 @@
 package com.acadex.app.data.repository
 
+import android.util.Log
 import com.acadex.app.data.remote.AssignmentDto
 import com.acadex.app.data.remote.SupabaseApiService
 import com.acadex.app.domain.model.Assignment
@@ -49,7 +50,8 @@ class AssignmentRepositoryImpl @Inject constructor(
                         supabaseApiService.getAssignments(SUPABASE_API_KEY, "Bearer $token", null)
                     }.onSuccess { dtos ->
                         emit(dtos.map { it.toDomain() })
-                    }.onFailure {
+                    }.onFailure { exception ->
+                        Log.e("AssignmentRepository", "Failed to fetch assignments flow list", exception)
                         emit(emptyList())
                     }
                 } else {
@@ -66,6 +68,8 @@ class AssignmentRepositoryImpl @Inject constructor(
             supabaseApiService.getAssignments(SUPABASE_API_KEY, "Bearer $token", null)
                 .firstOrNull { it.id == id }
                 ?.toDomain()
+        }.onFailure { exception ->
+            Log.e("AssignmentRepository", "Failed to get assignment by ID: $id", exception)
         }.getOrNull()
     }
 
@@ -111,6 +115,8 @@ class AssignmentRepositoryImpl @Inject constructor(
         )
         supabaseApiService.createAssignment(SUPABASE_API_KEY, "Bearer $token", dto)
         triggerRefresh()
+    }.onFailure { exception ->
+        Log.e("AssignmentRepository", "Failed to create assignment", exception)
     }
 
     override suspend fun updateAssignment(
@@ -150,12 +156,16 @@ class AssignmentRepositoryImpl @Inject constructor(
         )
         supabaseApiService.updateAssignment(SUPABASE_API_KEY, "Bearer $token", "eq.${assignment.id}", updates)
         triggerRefresh()
+    }.onFailure { exception ->
+        Log.e("AssignmentRepository", "Failed to update assignment ID: ${assignment.id}", exception)
     }
 
     override suspend fun deleteAssignment(id: String): Result<Unit> = runCatching {
         val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
         supabaseApiService.deleteAssignment(SUPABASE_API_KEY, "Bearer $token", "eq.$id")
         triggerRefresh()
+    }.onFailure { exception ->
+        Log.e("AssignmentRepository", "Failed to delete assignment ID: $id", exception)
     }
 
     private fun AssignmentDto.toDomain() = Assignment(

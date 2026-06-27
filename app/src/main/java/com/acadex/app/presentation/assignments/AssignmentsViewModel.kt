@@ -34,11 +34,13 @@ class AssignmentsViewModel @Inject constructor(
         assignment: Assignment,
         attachmentStream: InputStream? = null,
         attachmentName: String? = null,
-        onSuccess: () -> Unit
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
             assignmentRepository.createAssignment(assignment, attachmentStream, attachmentName)
                 .onSuccess { onSuccess() }
+                .onFailure { error -> onFailure(error.message ?: "Failed to create assignment") }
         }
     }
 
@@ -46,11 +48,13 @@ class AssignmentsViewModel @Inject constructor(
         assignment: Assignment,
         attachmentStream: InputStream? = null,
         attachmentName: String? = null,
-        onSuccess: () -> Unit
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit = {}
     ) {
         viewModelScope.launch {
             assignmentRepository.updateAssignment(assignment, attachmentStream, attachmentName)
                 .onSuccess { onSuccess() }
+                .onFailure { error -> onFailure(error.message ?: "Failed to update assignment") }
         }
     }
 

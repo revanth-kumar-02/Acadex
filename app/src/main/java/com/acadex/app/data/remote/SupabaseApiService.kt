@@ -21,6 +21,10 @@ data class RecoverRequest(
     @SerializedName("email") val email: String
 )
 
+data class RefreshSessionRequest(
+    @SerializedName("refresh_token") val refreshToken: String
+)
+
 data class SupabaseUserDto(
     @SerializedName("id") val id: String,
     @SerializedName("email") val email: String,
@@ -128,6 +132,12 @@ interface SupabaseApiService {
     suspend fun signIn(
         @Header("apikey") apiKey: String,
         @Body body: SignInRequest
+    ): AuthResponse
+
+    @POST("auth/v1/token?grant_type=refresh_token")
+    suspend fun refreshSession(
+        @Header("apikey") apiKey: String,
+        @Body body: RefreshSessionRequest
     ): AuthResponse
 
     @POST("auth/v1/recover")

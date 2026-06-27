@@ -12,6 +12,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.acadex.app.presentation.theme.Primary
@@ -23,6 +24,7 @@ fun AddAnnouncementScreen(
     viewModel: HomeViewModel,
     onNavigateBack: () -> Unit
 ) {
+    val context = LocalContext.current
     val state by viewModel.dashboardState.collectAsState()
 
     var title by remember { mutableStateOf("") }
@@ -92,6 +94,10 @@ fun AddAnnouncementScreen(
                                 onSuccess = {
                                     isSaving = false
                                     onNavigateBack()
+                                },
+                                onFailure = { error ->
+                                    isSaving = false
+                                    android.widget.Toast.makeText(context, error, android.widget.Toast.LENGTH_LONG).show()
                                 }
                             )
                         }

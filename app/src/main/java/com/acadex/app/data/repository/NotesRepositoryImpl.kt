@@ -1,5 +1,6 @@
 package com.acadex.app.data.repository
 
+import android.util.Log
 import com.acadex.app.data.remote.NoteDto
 import com.acadex.app.data.remote.SupabaseApiService
 import com.acadex.app.domain.model.Note
@@ -47,7 +48,8 @@ class NotesRepositoryImpl @Inject constructor(
                         supabaseApiService.getNotes(SUPABASE_API_KEY, "Bearer $token")
                     }.onSuccess { dtos ->
                         emit(dtos.map { it.toDomain() })
-                    }.onFailure {
+                    }.onFailure { exception ->
+                        Log.e("NotesRepository", "Failed to fetch notes list flow", exception)
                         emit(emptyList())
                     }
                 } else {
@@ -64,6 +66,8 @@ class NotesRepositoryImpl @Inject constructor(
             supabaseApiService.getNotes(SUPABASE_API_KEY, "Bearer $token")
                 .firstOrNull { it.id == id }
                 ?.toDomain()
+        }.onFailure { exception ->
+            Log.e("NotesRepository", "Failed to get note details for ID: $id", exception)
         }.getOrNull()
     }
 
@@ -105,12 +109,16 @@ class NotesRepositoryImpl @Inject constructor(
         )
         supabaseApiService.createNote(SUPABASE_API_KEY, "Bearer $token", dto)
         triggerRefresh()
+    }.onFailure { exception ->
+        Log.e("NotesRepository", "Failed to create shared note", exception)
     }
 
     override suspend fun deleteNote(noteId: String): Result<Unit> = runCatching {
         val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
         supabaseApiService.deleteNote(SUPABASE_API_KEY, "Bearer $token", "eq.$noteId")
         triggerRefresh()
+    }.onFailure { exception ->
+        Log.e("NotesRepository", "Failed to delete shared note ID: $noteId", exception)
     }
 
     private fun NoteDto.toDomain() = Note(

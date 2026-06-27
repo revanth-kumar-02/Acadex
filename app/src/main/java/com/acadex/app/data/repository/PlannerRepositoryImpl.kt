@@ -1,5 +1,6 @@
 package com.acadex.app.data.repository
 
+import android.util.Log
 import com.acadex.app.data.remote.PlannerTaskDto
 import com.acadex.app.data.remote.SupabaseApiService
 import com.acadex.app.domain.model.PlannerTask
@@ -45,7 +46,8 @@ class PlannerRepositoryImpl @Inject constructor(
                     }.onSuccess { dtos ->
                         val filtered = dtos.filter { it.date == date }.map { it.toDomain() }
                         emit(filtered)
-                    }.onFailure {
+                    }.onFailure { exception ->
+                        Log.e("PlannerRepository", "Failed to fetch tasks flow list for date $date", exception)
                         emit(emptyList())
                     }
                 } else {
@@ -70,7 +72,8 @@ class PlannerRepositoryImpl @Inject constructor(
                         supabaseApiService.getPlannerTasks(SUPABASE_API_KEY, "Bearer $token", "eq.$userId")
                     }.onSuccess { dtos ->
                         emit(dtos.map { it.toDomain() })
-                    }.onFailure {
+                    }.onFailure { exception ->
+                        Log.e("PlannerRepository", "Failed to fetch all tasks flow list", exception)
                         emit(emptyList())
                     }
                 } else {
@@ -88,6 +91,8 @@ class PlannerRepositoryImpl @Inject constructor(
             supabaseApiService.getPlannerTasks(SUPABASE_API_KEY, "Bearer $token", "eq.$userId")
                 .firstOrNull { it.id == id }
                 ?.toDomain()
+        }.onFailure { exception ->
+            Log.e("PlannerRepository", "Failed to get task by ID: $id", exception)
         }.getOrNull()
     }
 
@@ -106,6 +111,8 @@ class PlannerRepositoryImpl @Inject constructor(
         )
         supabaseApiService.createPlannerTask(SUPABASE_API_KEY, "Bearer $token", dto)
         triggerRefresh()
+    }.onFailure { exception ->
+        Log.e("PlannerRepository", "Failed to create task", exception)
     }
 
     override suspend fun updateTask(task: PlannerTask): Result<Unit> = runCatching {
@@ -118,12 +125,16 @@ class PlannerRepositoryImpl @Inject constructor(
         )
         supabaseApiService.updatePlannerTask(SUPABASE_API_KEY, "Bearer $token", "eq.${task.id}", updates)
         triggerRefresh()
+    }.onFailure { exception ->
+        Log.e("PlannerRepository", "Failed to update task ID: ${task.id}", exception)
     }
 
     override suspend fun deleteTask(id: String): Result<Unit> = runCatching {
         val token = sessionManager.getAccessToken() ?: throw Exception("User not authenticated")
         supabaseApiService.deletePlannerTask(SUPABASE_API_KEY, "Bearer $token", "eq.$id")
         triggerRefresh()
+    }.onFailure { exception ->
+        Log.e("PlannerRepository", "Failed to delete task ID: $id", exception)
     }
 
     private fun PlannerTaskDto.toDomain() = PlannerTask(

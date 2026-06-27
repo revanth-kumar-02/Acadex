@@ -156,7 +156,13 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun createAnnouncement(title: String, content: String, broadcastTarget: String, onSuccess: () -> Unit) {
+    fun createAnnouncement(
+        title: String,
+        content: String,
+        broadcastTarget: String,
+        onSuccess: () -> Unit,
+        onFailure: (String) -> Unit = {}
+    ) {
         viewModelScope.launch {
             val user = authRepository.currentUser.value
             val authorName = user?.name ?: "Student"
@@ -169,6 +175,7 @@ class HomeViewModel @Inject constructor(
             )
             announcementRepository.createAnnouncement(ann)
                 .onSuccess { onSuccess() }
+                .onFailure { error -> onFailure(error.message ?: "Failed to post announcement") }
         }
     }
 
